@@ -1,9 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Sun May 31 16:13:35 2020
-
-@author: kangsun
-"""
 import numpy as np
 import datetime as dt
 import struct
