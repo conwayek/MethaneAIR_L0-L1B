@@ -357,7 +357,7 @@ if(molecule == 'ch4'):
     # new dem maker
     FOV=33.7
     buff = 15000
-    dem_file = dem_maker(os.path.join(root_data,flight_nc_file),mintime,maxtime,datenow,FOV,buff) 
+    dem_file = dem_maker.main(os.path.join(root_data,flight_nc_file),mintime,maxtime,datenow,FOV,buff) 
 
     filename = os.path.join(cwd,'MethaneAIR_L1B_CH4_'+timestamp+'.nc')
     #########################################################################################
@@ -799,7 +799,7 @@ elif(molecule == 'o2'):
 
     FOV=33.7
     buff = 15000
-    dem_file = dem_maker(os.path.join(root_data,flight_nc_file),mintime,maxtime,datenow,FOV,buff) 
+    dem_file = dem_maker.main(os.path.join(root_data,flight_nc_file),mintime,maxtime,datenow,FOV,buff) 
 
     filename = os.path.join(cwd,'MethaneAIR_L1B_O2_'+timestamp+'.nc')
     #########################################################################################

@@ -5,7 +5,9 @@ import py3dep
 from shapely.geometry import Polygon
 import rioxarray
 
-
+import rasterio
+from rasterio.transform import from_origin
+import rasterio.transform
 
 def main(flight_nc_file,mintime,maxtime,datenow,fov,buff):
 
@@ -56,7 +58,7 @@ def main(flight_nc_file,mintime,maxtime,datenow,fov,buff):
     cord = [(lon_min,lat_min),(lon_min,lat_max),(lon_max,lat_max),(lon_max,lat_min)]
     geom = Polygon(cord)
 
-    dem = py3dep.get_map("DEM", geom, resolution=10, geo_crs="epsg:4326", crs="epsg:4326")
+    dem = py3dep.get_map("DEM", geom, resolution=100, geo_crs="epsg:4326", crs="epsg:4326")
     dem.to_netcdf('dem.nc')
 
     df = xarray.open_dataset("dem.nc")
