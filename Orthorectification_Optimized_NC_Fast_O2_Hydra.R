@@ -261,8 +261,8 @@
 
   # Generate the local DEM for orthorectification
   dem_ortho <-  dem %>%
-    raster::crop(extent(st_bbox(target_demarea_polygon[[1]])[c(1,3,2,4)])) %>%
-    raster::aggregate(dem_aggrregation_optimize)
+    raster::aggregate(dem_aggrregation_optimize))
+    #raster::crop(extent(st_bbox(target_demarea_polygon[[1]])[c(1,3,2,4)])) %>%
 
   # Convert the DEM to a data frame
   crs(dem_ortho)  <- "+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"
