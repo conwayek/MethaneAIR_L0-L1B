@@ -25,7 +25,7 @@ import dem_maker
 t_start = time.time()
 
 flight = 'RF02'
-computer = 'Odyssey' # or Odyssey
+computer = 'Hydra' # or Odyssey
 molecule = 'o2'
 
 if(computer == 'Odyssey'):
@@ -37,7 +37,7 @@ if(computer == 'Odyssey'):
 # This is the date of the flight
 
 if(flight == 'RF01'):
-    datenow = dt.datetime(year = 2019, month = 11, day = 08)
+    datenow = dt.datetime(year = 2019, month = 11, day = 8)
 elif(flight == 'RF02'):
     datenow = dt.datetime(year = 2019, month = 11, day = 12)
 
