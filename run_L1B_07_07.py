@@ -354,12 +354,10 @@ if(molecule == 'ch4':)
     mintime = np.min(granule.frameDateTime)
     maxtime = np.max(granule.frameDateTime)
 
-    # 2. new dem maker
+    # new dem maker
     FOV=33.7
     buff = 15000
     dem_file = dem_maker(os.path.join(root_data,flight_nc_file),mintime,maxtime,datenow,FOV,buff) 
-
-    os.system("gdal_translate -of GTiff dem.nc dem.tiff")
 
     filename = os.path.join(cwd,'MethaneAIR_L1B_CH4_'+timestamp+'.nc')
     #########################################################################################
@@ -370,7 +368,7 @@ if(molecule == 'ch4':)
     # If computer is Hydra
     if(computer == 'Hydra'):
         args1=str(os.path.join(root_data,flight_nc_file))
-        args2=str('dem.tiff')
+        args2=str(dem_file)
         args3=str(filename)
         args4=str(savepath)
         args5=str(os.path.join(root_data,'0Inputs/eop19622020.txt'))
@@ -381,7 +379,7 @@ if(molecule == 'ch4':)
         r_getname = robjects.globalenv['Orthorectification_Avionics_NC']
         # Avionics Only Routine
         r_getname(file_flightnc = os.path.join(root_data,flight_nc_file),\
-        file_dem = 'dem.tiff',\
+        file_dem = str(dem_file),\
         file_L1=filename,\
         dir_output = savepath,\
         latvar = "LATC",\
@@ -682,7 +680,7 @@ if(molecule == 'ch4':)
             robjects.r('''source('Orthorectification_Optimized_NC_Fast_CH4.R')''')
             r_getname = robjects.globalenv['Orthorectification_Optimized_NC']
             r_getname(file_flightnc = os.path.join(root_data,flight_nc_file),\
-            file_dem = 'dem.tiff',\
+            file_dem = str(dem_file),\
             file_l1_o2=filename,\
             dir_output = savepath,\
             framerate               = 0.1,\
@@ -714,7 +712,7 @@ if(molecule == 'ch4':)
             args8 =str(abs_off_lat )
     
             args9 =str(os.path.join(root_data,flight_nc_file))
-            args10=str('dem.tiff')
+            args10=str(dem_file)
             args11=str(filename)
             args12=str(savepath)
             args13=str(os.path.join(root_data,eop_file))
@@ -803,8 +801,6 @@ elif(molecule == 'o2'):
     buff = 15000
     dem_file = dem_maker(os.path.join(root_data,flight_nc_file),mintime,maxtime,datenow,FOV,buff) 
 
-    os.system("gdal_translate -of GTiff dem.nc dem.tiff")
-
     filename = os.path.join(cwd,'MethaneAIR_L1B_O2_'+timestamp+'.nc')
     #########################################################################################
     # SAVE ENTIRE .NC GRANULE
@@ -816,7 +812,7 @@ elif(molecule == 'o2'):
     # If computer is Hydra
     if(computer == 'Hydra'):
         args1=str(os.path.join(root_data,flight_nc_file))
-        args2=str('dem.tiff')
+        args2=str(dem_file)
         args3=str(filename)
         args4=str(savepath)
         args5=str(os.path.join(root_data,'0Inputs/eop19622020.txt'))
@@ -827,7 +823,7 @@ elif(molecule == 'o2'):
         r_getname = robjects.globalenv['Orthorectification_Avionics_NC']
         # Avionics Only Routine
         r_getname(file_flightnc = os.path.join(root_data,flight_nc_file),\
-        file_dem = 'dem.tiff',\
+        file_dem = str(dem_file),\
         file_L1=filename,\
         dir_output = savepath,\
         latvar = "LATC",\
@@ -947,7 +943,7 @@ elif(molecule == 'o2'):
             robjects.r('''source('Orthorectification_Optimized_NC_Fast_O2.R')''')
             r_getname = robjects.globalenv['Orthorectification_Optimized_NC']
             r_getname(file_flightnc = os.path.join(root_data,flight_nc_file),\
-            file_dem = 'dem.tiff',\
+            file_dem = str(dem_file),\
             file_l1_o2=filename,\
             dir_output = savepath,\
             framerate               = 0.1,\
@@ -979,7 +975,7 @@ elif(molecule == 'o2'):
             args8 =str(abs_off_lat )
     
             args9 =str(os.path.join(root_data,flight_nc_file))
-            args10=str('dem.tiff')
+            args10=str(dem_file)
             args11=str(filename)
             args12=str(savepath)
             args13=str(os.path.join(root_data,eop_file))
