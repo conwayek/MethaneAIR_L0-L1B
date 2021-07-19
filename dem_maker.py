@@ -78,3 +78,4 @@ def main(flight_nc_file,mintime,maxtime,datenow,fov,buff):
     new_dataset.write(elev, 1)
     new_dataset.close()
 
+    return('dem.tiff')
