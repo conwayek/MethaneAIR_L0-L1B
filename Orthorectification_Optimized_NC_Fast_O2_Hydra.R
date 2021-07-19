@@ -93,7 +93,8 @@
   flight_nc <- nc_open(file_flightnc)
 
   # Digital elevation map
-  dem <- readRDS(file_dem)
+  #dem <- readRDS(file_dem)
+  dem <- raster::raster(file_dem)
 
   # Earth Orientation Parameters
   eop <- read.table(file_eop, header = TRUE)
