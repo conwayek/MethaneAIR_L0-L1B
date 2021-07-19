@@ -354,7 +354,7 @@ if(molecule == 'ch4':)
     mintime = np.min(granule.frameDateTime)
     maxtime = np.max(granule.frameDateTime)
 
-    # new dem maker
+    # 2. new dem maker
     FOV=33.7
     buff = 15000
     dem_file = dem_maker(os.path.join(root_data,flight_nc_file),mintime,maxtime,datenow,FOV,buff) 
