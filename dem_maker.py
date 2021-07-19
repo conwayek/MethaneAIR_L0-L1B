@@ -59,5 +59,22 @@ def main(flight_nc_file,mintime,maxtime,datenow,fov,buff):
     dem = py3dep.get_map("DEM", geom, resolution=10, geo_crs="epsg:4326", crs="epsg:4326")
     dem.to_netcdf('dem.nc')
 
-
+    df = xarray.open_dataset("dem.nc")
+    
+    elev = df.variables['elevation']
+    
+    x = df.variables['elevation'].attrs['transform']
+    
+    y = list(x)
+    
+    trans = rasterio.transform.Affine(y[0],y[1],y[2],y[3],y[4],y[5])
+    
+    new_dataset = rasterio.open('dem.tiff', 'w', driver='GTiff',
+                                height = elev.shape[0], width = elev.shape[1],
+                                count=1, dtype=str(elev.dtype),
+                                crs='+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0',
+                                transform=trans)
+    
+    new_dataset.write(elev, 1)
+    new_dataset.close()
 
