@@ -140,6 +140,9 @@ calidatadir = root_data
 
 xtol = 1e-2
 ftol = 1e-2
+
+fitxfac=30
+
 xfac =15
 yfac = 3 
 
@@ -313,8 +316,7 @@ if(molecule == 'ch4'):
     ALT = altitude,
     xtol=xtol,
     ftol=ftol,
-    xtrackaggfactor=xfac,
-    atrackaggfactor=yfac)
+    xtrackaggfactor=fitxfac)
                       
     
     #STRAY LIGHT CORRECTION         
@@ -723,7 +725,7 @@ if(molecule == 'ch4'):
         os.remove(os.path.join(cwd,'MethaneAIR_L1B_CH4'+'_'+timestamp+'.nc'))
         name = 'MethaneAIR_L1B_CH4'+'_'+timestamp+'.nc'
         filename = os.path.join(l1DataDir,name)
-        aggregate.main(filename,l1AggDataDir)
+        aggregate.main(filename,l1AggDataDir,xfac,yfac)
     
     
     
@@ -760,8 +762,7 @@ elif(molecule == 'o2'):
     ALT = altitude,
     xtol=xtol,
     ftol=ftol,
-    xtrackaggfactor=xfac,
-    atrackaggfactor=yfac)
+    xtrackaggfactor=fitxfac)
     #STRAY LIGHT CORRECTION         
     #o.F_stray_light_input(strayLightKernelPath=strayLightKernelPathO2,rowExtent=200,colExtent=300)
     
@@ -986,6 +987,6 @@ elif(molecule == 'o2'):
         os.remove(os.path.join(cwd,'MethaneAIR_L1B_O2'+'_'+timestamp+'.nc'))
         name = 'MethaneAIR_L1B_O2'+'_'+timestamp+'.nc'
         filename = os.path.join(l1DataDir,name)
-        aggregate.main(filename,l1AggDataDir)
+        aggregate.main(filename,l1AggDataDir,xfac,yfac)
     
     print('Total Time(s) for ',nframes,' Frames = ' ,(time.time() - t_start))

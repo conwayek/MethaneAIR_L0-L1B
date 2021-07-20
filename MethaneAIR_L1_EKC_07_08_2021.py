@@ -255,7 +255,7 @@ class MethaneAIR_L1(object):
                  badPixelMapPath,radCalPath,wavCalPath,windowTransmissionPath,
                  solarPath,pixellimit,pixellimitX,spectraReffile,refitwavelength,
                  calibratewavelength,ISRFtype,fitisrf,calidata,fitSZA,SolZA,ALT,
-                 xtol,ftol,xtrackaggfactor,atrackaggfactor):
+                 xtol,ftol,xtrackaggfactor):
         import math
         """
         whichBand:
@@ -293,7 +293,6 @@ class MethaneAIR_L1(object):
         self.xtol=float(xtol)
         self.ftol=float(ftol)
         self.xtrackaggfactor = int(xtrackaggfactor)
-        self.atrackaggfactor = int(atrackaggfactor)  
         
         self.whichBand = whichBand
         self.logger = logging.getLogger(__name__)
@@ -627,7 +626,7 @@ class MethaneAIR_L1(object):
                                         self.co2spectraReffile,self.h2ospectraReffile,self.ch4spectraReffile,
                                         self.fitSZA,self.SZA,self.ALT,self.l1DataDir,granuleframeDateTime,self.pixlimitX,
                                         self.isrf_lut,self.isrf_w,self.isrf_dw0,self.wavelength,self.pixlimit,self.fitisrf,
-                                        self.ISRF,self.xtol,self.ftol,self.xtrackaggfactor,self.atrackaggfactor) 
+                                        self.ISRF,self.xtol,self.ftol,self.xtrackaggfactor) 
 
 
             row,shift,agg_x = [],[],[]

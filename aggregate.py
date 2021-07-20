@@ -18,7 +18,11 @@ from skimage.measure import block_reduce
 #for i in range(nfiles):
 
 
-def main(list_files,l1AggDataDir):
+def main(list_files,l1AggDataDir,xfac,yfac):
+
+    xfac = int(xfac)
+    yfac = int(yfac)
+
     name = str(list_files).split('.nc')[0]
     name = name.split('/')[-1]
     l1_outfile = os.path.join(l1AggDataDir,str(name)+'.nc')
@@ -59,8 +63,8 @@ def main(list_files,l1AggDataDir):
     #############################
     # NOW WE WRITE THE NEW FILE TO DESK: CH4 FIRST
     #############################
-    xtrk_aggfac = 15
-    atrk_aggfac = 3
+    xtrk_aggfac = xfac
+    atrk_aggfac = yfac
 
     norm_1d = block_reduce(np.ones(obsalt.shape),block_size=(atrk_aggfac,),func=np.mean)
     obsalt_new = block_reduce(obsalt,block_size=(atrk_aggfac,),func=np.mean) ; obsalt_new = obsalt_new / norm_1d

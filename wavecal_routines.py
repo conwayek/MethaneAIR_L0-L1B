@@ -161,7 +161,7 @@ def half_max_x(x, y):
 
 
 def fitspectra(Data,l1FitPath,whichBand,solarRefFile,calidata,o2spectraReffile,ciaspectraReffile,co2spectraReffile,h2ospectraReffile,ch4spectraReffile,fitSZA,SZA,ALT,l1DataDir,frameDateTime,pixlimitX,
-               isrf_lut,isrf_w,isrf_dw0,wavelength,pixlimit,fitisrf,ISRF,xtol,ftol,xtrackaggfactor,atrackaggfactor):
+               isrf_lut,isrf_w,isrf_dw0,wavelength,pixlimit,fitisrf,ISRF,xtol,ftol,xtrackaggfactor):
     
     from scipy import interpolate,optimize
     from lmfit import minimize, Parameters, Parameter,fit_report
@@ -170,7 +170,6 @@ def fitspectra(Data,l1FitPath,whichBand,solarRefFile,calidata,o2spectraReffile,c
     from skimage.measure import block_reduce
     
     
-    xtrackaggfactor = 40        
 
     #NUMBER OF FRAMES CAN BE USED TO GET FIRST GUESS ON THE VALUE OF SOLAR SCALING
     numframes = int(Data.shape[2])
