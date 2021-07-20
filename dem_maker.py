@@ -24,6 +24,8 @@ def main(flight_nc_file,mintime,maxtime,datenow,fov,buff):
     mintime = (mintime - datenow).seconds 
     maxtime = (maxtime - datenow).seconds 
 
+    x = np.linspace(0,len(time)-1,len(time))
+
     mintime= int(np.interp(mintime,time,x))
     maxtime= int(np.interp(maxtime,time,x))
 
