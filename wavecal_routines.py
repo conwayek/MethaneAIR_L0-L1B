@@ -390,32 +390,46 @@ def fitspectra(Data,l1FitPath,whichBand,solarRefFile,calidata,o2spectraReffile,c
 
         
     else:
-        h2opath = os.path.join(calidata,str('h2o_lut_1200-1750nm_0p02fwhm_1e21vcd_mesat.nc'))
+        h2opath = os.path.join(calidata,str('h2o_lut_HITRAN2020_5e-3cm-1.nc'))
         co2path = os.path.join(calidata,str('co2_lut_1200-1750nm_0p02fwhm_1e21vcd_mesat.nc'))
-        ch4path = os.path.join(calidata,str('ch4_lut_1200-1750nm_0p02fwhm_1e17vcd_mesat.nc'))
+        ch4path = os.path.join(calidata,str('ch4_lut_HITRAN2020_5e-3cm-1_g0_update.nc'))
         
         new = Dataset(h2opath, 'r')
         TH2O   = new.variables['CrossSection'][:,:,:].data  
-        Temp = new.variables['Temperature'][:].data
-        Press = new.variables['Pressure'][:].data
-        Wvl = new.variables['Wavelength'][:].data
+        TempH2O = new.variables['Temperature'][:].data
+        PressH2O = new.variables['Pressure'][:].data
+        WvlH2O = new.variables['Wavelength'][:].data
+
+        WvlH2O = 1.0e7/WvlH2O
+        WvlH2O = np.flip(WvlH2O)
+        TH2O = np.flip(TH2O,axis=2)
+
         new.close()
 
         new = Dataset(ch4path, 'r')
         TCH4 = new.variables['CrossSection'][:,:,:].data 
+        TempCH4 = new.variables['Temperature'][:].data
+        PressCH4 = new.variables['Pressure'][:].data
+        WvlCH4 = new.variables['Wavelength'][:].data
+        WvlCH4 = 1.0e7/WvlCH4
+        WvlCH4 = np.flip(WvlCH4)
+        TCH4 = np.flip(TCH4,axis=2)
         new.close()
         
         new = Dataset(co2path, 'r')
         TCO2 = new.variables['CrossSection'][:,:,:].data  
+        TempCO2 = new.variables['Temperature'][:].data
+        PressCO2 = new.variables['Pressure'][:].data
+        WvlCO2 = new.variables['Wavelength'][:].data
         new.close()
         
-        fnCH4 = RegularGridInterpolator((Press,Temp,Wvl), TCH4)
-        fnCO2 = RegularGridInterpolator((Press,Temp,Wvl), TCO2)
-        fnH2O = RegularGridInterpolator((Press,Temp,Wvl), TH2O)
+        fnCH4 = RegularGridInterpolator((PressCH4,TempCH4,WvlCH4), TCH4)
+        fnCO2 = RegularGridInterpolator((PressCO2,TempCO2,WvlCO2), TCO2)
+        fnH2O = RegularGridInterpolator((PressH2O,TempH2O,WvlH2O), TH2O)
         
-        wgtCH4 = np.zeros(len(Wvl))
-        wgtCO2 = np.zeros(len(Wvl))
-        wgtH2O = np.zeros(len(Wvl))
+        wgtCH4 = np.zeros(len(WvlCH4))
+        wgtCO2 = np.zeros(len(WvlCO2))
+        wgtH2O = np.zeros(len(WvlH2O))
                     
         columntotalCH4 = 0.0
         columntotalCO2 = 0.0
@@ -425,27 +439,27 @@ def fitspectra(Data,l1FitPath,whichBand,solarRefFile,calidata,o2spectraReffile,c
             
             for i in range( len(usheight) ):
                 if(usheight[i] <= ALT):
-                    xCH4 = fnCH4((uspressure[i],ustemperature[i],Wvl)) * usCH4[i] * (1.0/np.cos(SZA) + 1.0)
+                    xCH4 = fnCH4((uspressure[i],ustemperature[i],WvlCH4)) * usCH4[i] * (1.0/np.cos(SZA) + 1.0)
                     wgtCH4 = wgtCH4 + xCH4
                     columntotalCH4 = columntotalCH4 + usCH4[i]
                     ###
-                    xCO2 = fnCO2((uspressure[i],ustemperature[i],Wvl)) * usCO2[i] * (1.0/np.cos(SZA) + 1.0)
+                    xCO2 = fnCO2((uspressure[i],ustemperature[i],WvlCO2)) * usCO2[i] * (1.0/np.cos(SZA) + 1.0)
                     wgtCO2 = wgtCO2 + xCO2
                     columntotalCO2 = columntotalCO2 + usCO2[i]
                     ###
-                    xH2O = fnH2O((uspressure[i],ustemperature[i],Wvl)) * usH2O[i] * (1.0/np.cos(SZA) + 1.0)
+                    xH2O = fnH2O((uspressure[i],ustemperature[i],WvlH2O)) * usH2O[i] * (1.0/np.cos(SZA) + 1.0)
                     wgtH2O = wgtH2O + xH2O
                     columntotalH2O = columntotalH2O + usH2O[i]
                 else:
-                    xCH4 = fnCH4((uspressure[i],ustemperature[i],Wvl)) * usCH4[i] * (1.0/np.cos(SZA) )
+                    xCH4 = fnCH4((uspressure[i],ustemperature[i],WvlCH4)) * usCH4[i] * (1.0/np.cos(SZA) )
                     wgtCH4 = wgtCH4 + xCH4
                     columntotalCH4 = columntotalCH4 + usCH4[i]
                     ###
-                    xCO2 = fnCO2((uspressure[i],ustemperature[i],Wvl)) * usCO2[i] * (1.0/np.cos(SZA))
+                    xCO2 = fnCO2((uspressure[i],ustemperature[i],WvlCO2)) * usCO2[i] * (1.0/np.cos(SZA))
                     wgtCO2 = wgtCO2 + xCO2
                     columntotalCO2 = columntotalCO2 + usCO2[i]
                     ###
-                    xH2O = fnH2O((uspressure[i],ustemperature[i],Wvl)) * usH2O[i] * (1.0/np.cos(SZA))
+                    xH2O = fnH2O((uspressure[i],ustemperature[i],WvlH2O)) * usH2O[i] * (1.0/np.cos(SZA))
                     wgtH2O = wgtH2O + xH2O
                     columntotalH2O = columntotalH2O + usH2O[i]
                 
@@ -454,15 +468,15 @@ def fitspectra(Data,l1FitPath,whichBand,solarRefFile,calidata,o2spectraReffile,c
         else:
             for i in range( len(usheight) ):
                 if(usheight[i] <= 58.0):
-                    xCH4 = fnCH4((uspressure[i],ustemperature[i],Wvl)) * usCH4[i]
+                    xCH4 = fnCH4((uspressure[i],ustemperature[i],WvlCH4)) * usCH4[i]
                     wgtCH4 = wgtCH4 + xCH4
                     columntotalCH4 = columntotalCH4 + usCH4[i]
                     ###
-                    xCO2 = fnCO2((uspressure[i],ustemperature[i],Wvl)) * usCO2[i]
+                    xCO2 = fnCO2((uspressure[i],ustemperature[i],WvlCO2)) * usCO2[i]
                     wgtCO2 = wgtCO2 + xCO2
                     columntotalCO2 = columntotalCO2 + usCO2[i]
                     ###
-                    xH2O = fnH2O((uspressure[i],ustemperature[i],Wvl)) * usH2O[i]
+                    xH2O = fnH2O((uspressure[i],ustemperature[i],WvlH2O)) * usH2O[i]
                     wgtH2O = wgtH2O + xH2O
                     columntotalH2O = columntotalH2O + usH2O[i]
                 
@@ -474,13 +488,13 @@ def fitspectra(Data,l1FitPath,whichBand,solarRefFile,calidata,o2spectraReffile,c
         wgtCH4 = wgtCH4/columntotalCH4
         wgtH2O = wgtH2O/columntotalH2O
         
-        yCH4 = interpolate.interp1d(Wvl,wgtCH4)
+        yCH4 = interpolate.interp1d(WvlCH4,wgtCH4)
         CH4 = np.zeros(len(specwave))
         
-        yCO2 = interpolate.interp1d(Wvl,wgtCO2)
+        yCO2 = interpolate.interp1d(WvlCO2,wgtCO2)
         CO2 = np.zeros(len(specwave))
         
-        yH2O = interpolate.interp1d(Wvl,wgtH2O)
+        yH2O = interpolate.interp1d(WvlH2O,wgtH2O)
         H2O = np.zeros(len(specwave))
         
         for i in range(len(specwave)):

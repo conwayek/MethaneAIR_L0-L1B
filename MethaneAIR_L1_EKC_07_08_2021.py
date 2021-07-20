@@ -618,10 +618,10 @@ class MethaneAIR_L1(object):
 
             self.logger.info('RECALIBRATING OBSERVED WAVELENGTH: BEGIN FITTING')
 
-            self.o2spectraReffile = 'o2_lut_1200-1750nm_0p02fwhm_1e21vcd_mesat.nc' 
-            self.h2ospectraReffile = 'h2o_lut_1200-1750nm_0p02fwhm_1e21vcd_mesat.nc' 
+            self.o2spectraReffile = 'o2_lut_HIT2020_5e-3cm-1.nc' 
+            self.h2ospectraReffile = 'h2o_lut_HITRAN2020_5e-3cm-1.nc' 
             self.co2spectraReffile = 'co2_lut_1200-1750nm_0p02fwhm_1e21vcd_mesat.nc' 
-            self.ch4spectraReffile = 'ch4_lut_1200-1750nm_0p02fwhm_1e17vcd_mesat.nc' 
+            self.ch4spectraReffile = 'ch4_lut_HITRAN2020_5e-3cm-1_g0_update.nc' 
 
             wavecal_routines.fitspectra(Data,self.l1FitPath,self.whichBand,self.solarRefFile,self.calidata,self.o2spectraReffile,self.spectraReffile,
                                         self.co2spectraReffile,self.h2ospectraReffile,self.ch4spectraReffile,
