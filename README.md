@@ -29,3 +29,4 @@ The directories are pretty standard:
 6. L1B aggregated directories.
 
 
+All codes are presently operational on both computers.
