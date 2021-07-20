@@ -25,7 +25,7 @@ import dem_maker
 t_start = time.time()
 
 flight = 'RF02'
-computer = 'Hydra' # or Odyssey
+computer = 'Odyssey' # or Odyssey
 molecule = 'o2'
 
 if(computer == 'Odyssey'):
@@ -92,15 +92,15 @@ elif(computer == 'Hydra'):
 
 
 
-l1_abs_akaze_DataDir = os.path.join(root_dest,'RF02/EKC_V4/O2_ABS_AKAZE_FILES/')
-l1_rel_akaze_DataDir = os.path.join(root_dest,'RF02/EKC_V4/CH4_REL_AKAZE_FILES/')
+l1_abs_akaze_DataDir = os.path.join(root_dest,str(flight)+'/EKC_V4_with_Stray/O2_ABS_AKAZE_FILES/')
+l1_rel_akaze_DataDir = os.path.join(root_dest,str(flight)+'/EKC_V4_with_Stray/CH4_REL_AKAZE_FILES/')
 
 if(molecule == 'ch4'):
-    l1DataDir = os.path.join(root_dest,str(flight)+'/EKC_V4/CH4_NATIVE/')
-    l1AggDataDir = os.path.join(root_dest,str(flight)+'/EKC_V4/CH4_15x3/')
+    l1DataDir = os.path.join(root_dest,str(flight)+'/EKC_V4_with_Stray/CH4_NATIVE/')
+    l1AggDataDir = os.path.join(root_dest,str(flight)+'/EKC_V4_with_Stray/CH4_15x3/')
 if(molecule == 'o2'):
-    l1DataDir = os.path.join(root_dest,str(flight)+'/EKC_V4/O2_NATIVE/')
-    l1AggDataDir = os.path.join(root_dest,str(flight)+'/EKC_V4/O2_15x3/')
+    l1DataDir = os.path.join(root_dest,str(flight)+'/EKC_V4_with_Stray/O2_NATIVE/')
+    l1AggDataDir = os.path.join(root_dest,str(flight)+'/EKC_V4_with_Stray/O2_15x3/')
 
 windowTransmissionPath = os.path.join(root_data,'window_transmission.mat')
 # CH4 CHANNEL DATA    
@@ -320,7 +320,7 @@ if(molecule == 'ch4'):
                       
     
     #STRAY LIGHT CORRECTION         
-    #m.F_stray_light_input(strayLightKernelPath=strayLightKernelPathCH4,rowExtent=200,colExtent=300)
+    m.F_stray_light_input(strayLightKernelPath=strayLightKernelPathCH4,rowExtent=200,colExtent=300)
     
     
     
@@ -763,8 +763,9 @@ elif(molecule == 'o2'):
     xtol=xtol,
     ftol=ftol,
     xtrackaggfactor=fitxfac)
+
     #STRAY LIGHT CORRECTION         
-    #o.F_stray_light_input(strayLightKernelPath=strayLightKernelPathO2,rowExtent=200,colExtent=300)
+    o.F_stray_light_input(strayLightKernelPath=strayLightKernelPathO2,rowExtent=200,colExtent=300)
     
     
     dark = o.F_grab_dark(darkfile)
