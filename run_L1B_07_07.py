@@ -43,6 +43,7 @@ elif(flight == 'RF02'):
 
 
 
+
 if(computer == 'Odyssey'):
     root_dest = '/n/holylfs04/LABS/wofsy_lab/Lab/MethaneAIR/level1/'
     root_data = '/n/holylfs04/LABS/wofsy_lab/Lab/econway/DATA/'
@@ -97,6 +98,7 @@ l1_rel_akaze_DataDir = os.path.join(root_dest,str(flight)+'/EKC_V4_with_Stray/CH
 
 if(molecule == 'ch4'):
     l1DataDir = os.path.join(root_dest,str(flight)+'/EKC_V4_with_Stray/CH4_NATIVE/')
+    o2dir = os.path.join(root_dest,str(flight)+'/EKC_V4_with_Stray/O2_NATIVE/') 
     l1AggDataDir = os.path.join(root_dest,str(flight)+'/EKC_V4_with_Stray/CH4_15x3/')
 if(molecule == 'o2'):
     l1DataDir = os.path.join(root_dest,str(flight)+'/EKC_V4_with_Stray/O2_NATIVE/')
@@ -413,7 +415,6 @@ if(molecule == 'ch4'):
     ch4_second = int(ch4_tzero[13:15])
     
     
-    o2dir = '/n/holyscratch01/wofsy_lab/econway/RF02_Post_Corrections/O2_NATIVE/'
     o2file=[]
     for folder in os.listdir(o2dir):
         if(folder.endswith('seq')):
@@ -683,7 +684,7 @@ if(molecule == 'ch4'):
             r_getname = robjects.globalenv['Orthorectification_Optimized_NC']
             r_getname(file_flightnc = os.path.join(root_data,flight_nc_file),\
             file_dem = str(dem_file),\
-            file_l1_o2=filename,\
+            file_L1_O2=filename,\
             dir_output = savepath,\
             framerate               = 0.1,\
             points_x                = 1280,\
@@ -946,7 +947,7 @@ elif(molecule == 'o2'):
             r_getname = robjects.globalenv['Orthorectification_Optimized_NC']
             r_getname(file_flightnc = os.path.join(root_data,flight_nc_file),\
             file_dem = str(dem_file),\
-            file_l1_o2=filename,\
+            file_L1_O2=filename,\
             dir_output = savepath,\
             framerate               = 0.1,\
             points_x                = 1280,\
