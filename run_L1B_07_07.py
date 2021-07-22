@@ -24,9 +24,12 @@ import dem_maker
 
 t_start = time.time()
 
-flight = 'RF02'
-computer = 'Odyssey' # or Odyssey
-molecule = 'ch4'
+flight = 'RF02' 
+computer = 'Odyssey' # Hydra or Odyssey
+molecule = 'ch4' # ch4 or o2
+submission = 'array' # array or serial
+priority = int(0) # priority index of data = 0 (not priority) or 1 (priority)
+
 
 if(computer == 'Odyssey'):
     import rpy2 as rpy2
@@ -100,9 +103,13 @@ if(molecule == 'ch4'):
     l1DataDir = os.path.join(root_dest,str(flight)+'/EKC_V4_with_Stray/CH4_NATIVE/')
     o2dir = '/n/holyscratch01/wofsy_lab/econway/RF02_With_Stray/O2_NATIVE/' 
     l1AggDataDir = os.path.join(root_dest,str(flight)+'/EKC_V4_with_Stray/CH4_15x3/')
+    logfile_native = os.path.join(l1DataDir,'log_file.txt')
+    logfile_agg = os.path.join(l1AggDataDir,'log_file.txt')
 if(molecule == 'o2'):
     l1DataDir = os.path.join(root_dest,str(flight)+'/EKC_V4_with_Stray/O2_NATIVE/')
     l1AggDataDir = os.path.join(root_dest,str(flight)+'/EKC_V4_with_Stray/O2_15x3/')
+    logfile_native = os.path.join(l1DataDir,'log_file.txt')
+    logfile_agg = os.path.join(l1AggDataDir,'log_file.txt')
 
 windowTransmissionPath = os.path.join(root_data,'window_transmission.mat')
 # CH4 CHANNEL DATA    
@@ -158,10 +165,15 @@ with open(os.path.join(root_data,seq_files), 'r') as file:
 file.close()
 
 
-# THIS IS NUMBER THE FILE WE ARE GOING TO PROCESS
-for line in open('iteration.txt', 'r'):
-  values = [float(s) for s in line.split()]
-  iteration = np.int(values[0])
+## THIS IS NUMBER THE FILE WE ARE GOING TO PROCESS
+if(submission == 'serial'):
+    for line in open('iteration.txt', 'r'):
+      values = [float(s) for s in line.split()]
+      iteration = np.int(values[0])
+elif(submission == 'array'):
+    pwd = os.getcwd()
+    iteration =int( pwd.split('/')[-1])
+    iteration = int(iteration - 1)
 
 
 targetfile = filenames[iteration]
@@ -723,10 +735,33 @@ if(molecule == 'ch4'):
             subprocess.call(['/home/econway/anaconda3/envs/r4-base/bin/Rscript', 'Orthorectification_Optimized_NC_Fast_CH4_Hydra.R', args1, args2, args3, args4, args5, args6,args7, args8, args9, args10, args11, args12, args13,args14])
     
         x = m.write_splat_l1_coadd(str(cwd),str(savepath),str(timestamp),str(l1DataDir),xtrk_aggfac=1,atrk_aggfac=1,ortho_step='avionics')
+
+        if not os.path.exists(logfile_native):
+            with FileLock(logfile_native):
+                with open(logfile_native,'w'):
+                    f.write(str('Filename')+' '+str('Priority Index')+'\n' )
+                    f.write(str(os.path.join(l1DataDir,'MethaneAIR_L1B_CH4_'+str(timestamp)+'.nc'))+' '+str(priority)+'\n' )
+                f.close()
+        else:
+            with FileLock(logfile_native):
+                with open(logfile_native,'a'):
+                    f.write(str(os.path.join(l1DataDir,'MethaneAIR_L1B_CH4_'+str(timestamp)+'.nc'))+' '+str(priority)+'\n' )
+                f.close()
         os.remove(os.path.join(cwd,'MethaneAIR_L1B_CH4'+'_'+timestamp+'.nc'))
         name = 'MethaneAIR_L1B_CH4'+'_'+timestamp+'.nc'
         filename = os.path.join(l1DataDir,name)
         aggregate.main(filename,l1AggDataDir,xfac,yfac)
+        if not os.path.exists(logfile_agg):
+            with FileLock(logfile_agg):
+                with open(logfile_agg,'w'):
+                    f.write(str('Filename')+' '+str('Priority Index')+'\n' )
+                    f.write(str(os.path.join(l1AggDataDir,'MethaneAIR_L1B_CH4_'+str(timestamp)+'.nc'))+' '+str(priority)+'\n' )
+                f.close()
+        else:
+            with FileLock(logfile_agg):
+                with open(logfile_agg,'a'):
+                    f.write(str(os.path.join(l1AggDataDir,'MethaneAIR_L1B_CH4_'+str(timestamp)+'.nc'))+' '+str(priority)+'\n' )
+                f.close()
     
     
     
@@ -986,9 +1021,31 @@ elif(molecule == 'o2'):
             subprocess.call(['/home/econway/anaconda3/envs/r4-base/bin/Rscript', 'Orthorectification_Optimized_NC_Fast_O2_Hydra.R', args1, args2, args3, args4, args5, args6,args7, args8, args9, args10, args11, args12, args13,args14])
     
         x = o.write_splat_l1_coadd(str(cwd),str(savepath),str(timestamp),str(l1DataDir),xtrk_aggfac=1,atrk_aggfac=1,ortho_step='avionics')
+        if not os.path.exists(logfile_native):
+            with FileLock(logfile_native):
+                with open(logfile_native,'w'):
+                    f.write(str('Filename')+' '+str('Priority Index')+'\n' )
+                    f.write(str(os.path.join(l1DataDir,'MethaneAIR_L1B_O2_'+str(timestamp)+'.nc'))+' '+str(priority)+'\n' )
+                f.close()
+        else:
+            with FileLock(logfile_native):
+                with open(logfile_native,'a'):
+                    f.write(str(os.path.join(l1DataDir,'MethaneAIR_L1B_O2_'+str(timestamp)+'.nc'))+' '+str(priority)+'\n' )
+                f.close()
         os.remove(os.path.join(cwd,'MethaneAIR_L1B_O2'+'_'+timestamp+'.nc'))
         name = 'MethaneAIR_L1B_O2'+'_'+timestamp+'.nc'
         filename = os.path.join(l1DataDir,name)
         aggregate.main(filename,l1AggDataDir,xfac,yfac)
+        if not os.path.exists(logfile_agg):
+            with FileLock(logfile_agg):
+                with open(logfile_agg,'w'):
+                    f.write(str('Filename')+' '+str('Priority Index')+'\n' )
+                    f.write(str(os.path.join(l1AggDataDir,'MethaneAIR_L1B_O2_'+str(timestamp)+'.nc'))+' '+str(priority)+'\n' )
+                f.close()
+        else:
+            with FileLock(logfile_agg):
+                with open(logfile_agg,'a'):
+                    f.write(str(os.path.join(l1AggDataDir,'MethaneAIR_L1B_O2_'+str(timestamp)+'.nc'))+' '+str(priority)+'\n' )
+                f.close()
     
     print('Total Time(s) for ',nframes,' Frames = ' ,(time.time() - t_start))
