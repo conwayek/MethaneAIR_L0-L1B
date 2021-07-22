@@ -784,32 +784,45 @@ class MethaneAIR_L1(object):
         granuleEdgeDateTimeList[-1] = granuleEdgeDateTimeList[-1] + dt.timedelta(seconds=extratime)
         
         self.logger.info('cutting granule into %d'%nGranule+' shorter granules with length %d'%granuleSeconds +' seconds')
-        granuleList = np.ndarray(shape=(nGranule),dtype=np.object_)
-        for i in range(nGranule):
-            if(i<(nGranule-1)):
-                g0 = Granule()
-                g0.seqDateTime = seqDateTime
-                f = (frameDateTime >= granuleEdgeDateTimeList[i]) &\
-                (frameDateTime < granuleEdgeDateTimeList[i+1])
-                g0.nFrame = np.int16(np.sum(f))
-                g0.frameDateTime = frameDateTime[f]
-                g0.frameTime = frameTime[f]
-                if hasattr(granule,'data'):
-                    g0.data = data[...,f]
-                    g0.noise = noise[...,f]
-                granuleList[i] = g0
-            elif(i==(nGranule-1)):
-                g0 = Granule()
-                g0.seqDateTime = seqDateTime
-                f = (frameDateTime >= granuleEdgeDateTimeList[i]) &\
-                (frameDateTime <= granuleEdgeDateTimeList[i+1])
-                g0.nFrame = np.int16(np.sum(f))
-                g0.frameDateTime = frameDateTime[f]
-                g0.frameTime = frameTime[f]
-                if hasattr(granule,'data'):
-                    g0.data = data[...,f]
-                    g0.noise = noise[...,f]
-                granuleList[i] = g0
+        if(int(nGranule) > 0):
+            granuleList = np.ndarray(shape=(nGranule),dtype=np.object_)
+            for i in range(nGranule):
+                    if(i<(nGranule-1)):
+                        g0 = Granule()
+                        g0.seqDateTime = seqDateTime
+                        f = (frameDateTime >= granuleEdgeDateTimeList[i]) &\
+                        (frameDateTime < granuleEdgeDateTimeList[i+1])
+                        g0.nFrame = np.int16(np.sum(f))
+                        g0.frameDateTime = frameDateTime[f]
+                        g0.frameTime = frameTime[f]
+                        if hasattr(granule,'data'):
+                            g0.data = data[...,f]
+                            g0.noise = noise[...,f]
+                        granuleList[i] = g0
+                    elif(i==(nGranule-1)):
+                        g0 = Granule()
+                        g0.seqDateTime = seqDateTime
+                        f = (frameDateTime >= granuleEdgeDateTimeList[i]) &\
+                        (frameDateTime <= granuleEdgeDateTimeList[i+1])
+                        g0.nFrame = np.int16(np.sum(f))
+                        g0.frameDateTime = frameDateTime[f]
+                        g0.frameTime = frameTime[f]
+                        if hasattr(granule,'data'):
+                            g0.data = data[...,f]
+                            g0.noise = noise[...,f]
+                        granuleList[i] = g0
+        elif(int(nGranule) == 0):
+              granuleList = np.ndarray(shape=(nGranule+1),dtype=np.object_)
+              g0 = Granule()
+              g0.seqDateTime = seqDateTime
+              g0.frameDateTime = frameDateTime
+              g0.frameTime = frameTime
+              g0.nFrame = np.int16(len(frameTime))
+              if hasattr(granule,'data'):
+                  g0.data = data
+                  g0.noise = noise
+              granuleList[0] = g0
+
         return granuleList
     
     def F_save_L1B_time_only(self,granule,headerStr='MethaneAIR_L1B_CH4_timeonly_'):
