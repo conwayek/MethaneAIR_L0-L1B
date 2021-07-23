@@ -45,16 +45,14 @@ if(flight == 'RF01'):
 elif(flight == 'RF02'):
     datenow = dt.datetime(year = 2019, month = 11, day = 12)
 elif(flight == 'CheckOut'):
-    datenow = dt.datetime(year = 2021, month = 7, day = 1)
+    datenow = dt.datetime(year = 2021, month = 7, day = 26)
 elif(flight == 'RF03'):
     datenow = dt.datetime(year = 2021, month = 8, day = 1)
 elif(flight == 'RF04'):
     datenow = dt.datetime(year = 2021, month = 8, day = 1)
 elif(flight == 'RF05'):
     datenow = dt.datetime(year = 2021, month = 8, day = 1)
-elif(flight == 'RF05'):
-    datenow = dt.datetime(year = 2021, month = 8, day = 1)
-elif(flight == 'RF05'):
+elif(flight == 'RF06'):
     datenow = dt.datetime(year = 2021, month = 8, day = 1)
 
 
@@ -89,12 +87,47 @@ if(computer == 'Odyssey'):
     elif(flight == 'CheckOut'):
         ac_file = 'MethaneAIRCheckOut_hrt.nc' 
         if(molecule == 'ch4'):
-            root_l0 = '/n/holylfs04/LABS/wofsy_lab/Lab/MethaneAIR/data/flight_testing/20210801/ch4_camera/'
+            root_l0 = '/n/holylfs04/LABS/wofsy_lab/Lab/MethaneAIR/data/flight_testing/20210726/ch4_camera/'
             seq_files = os.path.join(root_data,'ch4_seq_files_CheckOut.txt')
         elif(molecule == 'o2'):
-            root_l0 = '/n/holylfs04/LABS/wofsy_lab/Lab/MethaneAIR/data/flight_testing/20210801/o2_camera/'
+            root_l0 = '/n/holylfs04/LABS/wofsy_lab/Lab/MethaneAIR/data/flight_testing/20210726/o2_camera/'
             seq_files = os.path.join(root_data,'o2_seq_files_CheckOut.txt')
 
+    elif(flight == 'RF03'):
+        ac_file = 'MethaneAIRrf03_hrt.nc' 
+        if(molecule == 'ch4'):
+            root_l0 = '/n/holylfs04/LABS/wofsy_lab/Lab/MethaneAIR/data/flight_testing/20210726/ch4_camera/'
+            seq_files = os.path.join(root_data,'ch4_seq_files_RF03.txt')
+        elif(molecule == 'o2'):
+            root_l0 = '/n/holylfs04/LABS/wofsy_lab/Lab/MethaneAIR/data/flight_testing/20210726/o2_camera/'
+            seq_files = os.path.join(root_data,'o2_seq_files_RF03.txt')
+
+    elif(flight == 'RF04'):
+        ac_file = 'MethaneAIRrf04_hrt.nc' 
+        if(molecule == 'ch4'):
+            root_l0 = '/n/holylfs04/LABS/wofsy_lab/Lab/MethaneAIR/data/flight_testing/20210726/ch4_camera/'
+            seq_files = os.path.join(root_data,'ch4_seq_files_RF04.txt')
+        elif(molecule == 'o2'):
+            root_l0 = '/n/holylfs04/LABS/wofsy_lab/Lab/MethaneAIR/data/flight_testing/20210726/o2_camera/'
+            seq_files = os.path.join(root_data,'o2_seq_files_RF04.txt')
+
+    elif(flight == 'RF05'):
+        ac_file = 'MethaneAIRrf05_hrt.nc' 
+        if(molecule == 'ch4'):
+            root_l0 = '/n/holylfs04/LABS/wofsy_lab/Lab/MethaneAIR/data/flight_testing/20210726/ch4_camera/'
+            seq_files = os.path.join(root_data,'ch4_seq_files_RF05.txt')
+        elif(molecule == 'o2'):
+            root_l0 = '/n/holylfs04/LABS/wofsy_lab/Lab/MethaneAIR/data/flight_testing/20210726/o2_camera/'
+            seq_files = os.path.join(root_data,'o2_seq_files_RF05.txt')
+
+    elif(flight == 'RF06'):
+        ac_file = 'MethaneAIRrf06_hrt.nc' 
+        if(molecule == 'ch4'):
+            root_l0 = '/n/holylfs04/LABS/wofsy_lab/Lab/MethaneAIR/data/flight_testing/20210726/ch4_camera/'
+            seq_files = os.path.join(root_data,'ch4_seq_files_RF06.txt')
+        elif(molecule == 'o2'):
+            root_l0 = '/n/holylfs04/LABS/wofsy_lab/Lab/MethaneAIR/data/flight_testing/20210726/o2_camera/'
+            seq_files = os.path.join(root_data,'o2_seq_files_RF06.txt')
 
 
     else:
@@ -110,7 +143,7 @@ if(computer == 'Odyssey'):
 
 elif(computer == 'Hydra'):
 
-    root_dest = '/scratch/sao/econway/L1B_Files/'
+    root_dest = '/scratch/sao_atmos/econway/'
     root_data = '/home/econway/DATA/'
 
     if(flight == 'RF01'):
@@ -148,13 +181,20 @@ elif(computer == 'Hydra'):
 
 
 
+
+
 l1_abs_akaze_DataDir = os.path.join(root_dest,str(flight)+'/EKC_V4_with_Stray/O2_ABS_AKAZE_FILES/')
 l1_rel_akaze_DataDir = os.path.join(root_dest,str(flight)+'/EKC_V4_with_Stray/CH4_REL_AKAZE_FILES/')
 
+
+
+
 if(molecule == 'ch4'):
     l1DataDir = os.path.join(root_dest,str(flight)+'/EKC_V4_with_Stray/CH4_NATIVE/')
-    o2dir = '/n/holyscratch01/wofsy_lab/econway/RF02_With_Stray/O2_NATIVE/' 
-    #o2dir = '/n/holyscratch01/wofsy_lab/econway/+str(flight)/O2_NATIVE/' 
+    if(computer == 'Odyssey'):
+        o2dir = '/n/holyscratch01/wofsy_lab/econway/'+str('RF02_With_Stray')+'/O2_NATIVE/' 
+    else:
+        o2dir = '/scratch/sao/econway/'+str(flight)+'/O2_NATIVE/' 
     l1AggDataDir = os.path.join(root_dest,str(flight)+'/EKC_V4_with_Stray/CH4_15x3/')
     logfile_native = os.path.join(l1DataDir,'log_file.txt')
     logfile_agg = os.path.join(l1AggDataDir,'log_file.txt')
@@ -163,6 +203,12 @@ if(molecule == 'o2'):
     l1AggDataDir = os.path.join(root_dest,str(flight)+'/EKC_V4_with_Stray/O2_15x3/')
     logfile_native = os.path.join(l1DataDir,'log_file.txt')
     logfile_agg = os.path.join(l1AggDataDir,'log_file.txt')
+
+
+
+
+
+
 
 windowTransmissionPath = os.path.join(root_data,'window_transmission.mat')
 # CH4 CHANNEL DATA    
