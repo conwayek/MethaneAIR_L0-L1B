@@ -30,7 +30,7 @@ computer = 'Odyssey' # Hydra or Odyssey
 molecule = 'ch4' # ch4 or o2
 submission = 'array' # array or serial
 priority = int(0) # priority index of data = 0 (not priority) or 1 (priority)
-
+landsat_file = 'landsat_set2.nc'
 
 if(computer == 'Odyssey'):
     import rpy2 as rpy2
@@ -925,7 +925,7 @@ elif(molecule == 'o2'):
     # NEED TO CALL AKAZE ALGORITHM HERE
     files=[]
     files.append(os.path.join(avionics_dir,('MethaneAIR_L1B_O2_'+timestamp))) 
-    abs_sc_lat,abs_sc_lon,abs_off_lat,abs_off_lon,rval_lat,rval_lon = akaze_nc_06_24_2021.main(files,computer)
+    abs_sc_lat,abs_sc_lon,abs_off_lat,abs_off_lon,rval_lat,rval_lon = akaze_nc_06_24_2021.main(files,computer,landsat_file)
     
     #########################################################################################
     rel_off_lon = np.float(0.0) 
@@ -964,7 +964,7 @@ elif(molecule == 'o2'):
                     else:
                         newfiles = os.listdir(os.path.join(direct1,filenames[int(iteration-1)],str('AvionicsGranule')))
                         files.append(os.path.join(direct1,filenames[int(iteration-1)],str('AvionicsGranule'),str(newfiles[0]).split('.nc')[0]))
-                        abs_sc_lat,abs_sc_lon,abs_off_lat,abs_off_lon,rval_lat,rval_lon = akaze_nc_06_24_2021.main(files,computer)
+                        abs_sc_lat,abs_sc_lon,abs_off_lat,abs_off_lon,rval_lat,rval_lon = akaze_nc_06_24_2021.main(files,computer,landsat_file)
                         afile = 'MethaneAIR_L1B_O2_'+str(timestamp)+'_absolute_correction_akaze.txt'
                         os.system('cp '+afile+' '+ l1_abs_akaze_DataDir)
                         abs_off_lon = np.float(abs_off_lon) 

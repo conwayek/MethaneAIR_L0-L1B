@@ -16,12 +16,12 @@ import os.path
 from os import path
 import os
 # main function
-def main(o2_files,computer):
+def main(o2_files,computer,landsat_file):
     # specify inputs:
     if (computer == 'Odyssey'):
-        file_landsat = '/n/holylfs04/LABS/wofsy_lab/Lab/econway/DATA/landsat_set2.nc'
+        file_landsat = os.path.join('/n/holylfs04/LABS/wofsy_lab/Lab/econway/DATA/',str(landsat_file))#'landsat_set2.nc'
     elif (computer == 'Hydra'):
-        file_landsat = '/home/econway/DATA/landsat_set2.nc'
+        file_landsat = os.path.join('/home/econway/DATA/',str(landsat_file))
     grid_size = 0.0001 # define the grid size of the mosaic in degree (0.01 deg~1.1km)  
     do_histeq = True  # do histogram eq to enhance the contrast
     # specify O2 folder/files
