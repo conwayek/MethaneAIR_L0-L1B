@@ -168,7 +168,10 @@ windowTransmissionPath = os.path.join(root_data,'window_transmission.mat')
 # CH4 CHANNEL DATA    
 badPixelMapPathCH4 = os.path.join(root_data,'CH4_bad_pix.csv')
 radCalPathCH4 = os.path.join(root_data,'rad_coef_ch4_100ms_ord4_20200209T211211.mat')
-wavCalPathCH4 = os.path.join(root_data,'methaneair_ch4_spectroscopic_calibration_1280_footprints.nc')
+if(flight=='RF01' or flight=='RF02'):
+    wavCalPathCH4 = os.path.join(root_data,'methaneair_ch4_spectroscopic_calibration_1280_footprints.nc')
+else:
+    wavCalPathCH4 = os.path.join(root_data,'methaneair_ch4_isrf_1280_footprints_20210722T153105.nc')
 l0DataDirCH4 = root_l0
 strayLightKernelPathCH4 = os.path.join(root_data,'K_stable_CH4.mat')
 solarPathCH4= os.path.join(root_data,'hybrid_reference_spectrum_p001nm_resolution_with_unc.nc')
@@ -185,7 +188,10 @@ fitSZACH4 = True
 # O2 CHANNEL DATA    
 badPixelMapPathO2 = os.path.join(root_data,'O2_bad_pix.csv')
 radCalPathO2 = os.path.join(root_data,'rad_coef_o2_100ms_ord4_20200205T230528.mat')
-wavCalPathO2 = os.path.join(root_data,'methaneair_o2_spectroscopic_calibration_1280_footprints.nc')
+if(flight=='RF01' or flight=='RF02'):
+    wavCalPathO2 = os.path.join(root_data,'methaneair_o2_spectroscopic_calibration_1280_footprints.nc')
+else:
+    wavCalPathO2 = os.path.join(root_data,'methaneair_o2_spectroscopic_calibration_1280_footprints.nc')
 l0DataDirO2 = root_l0
 strayLightKernelPathO2 = os.path.join(root_data,'K_stable_O2.mat')
 solarPathO2= os.path.join(root_data,'hybrid_reference_spectrum_p001nm_resolution_with_unc.nc')
@@ -415,10 +421,10 @@ if(molecule == 'ch4'):
 
     if(flight == 'RF01'):
         flight_nc_file = '0Inputs/MethaneAIRrf01_hrt.nc'
-        eop_file = '0Inputs/eop19622020.txt'
+        eop_file = '0Inputs/EOP-Last5Years_celestrak_20210723.txt'
     elif(flight == 'RF02'):
         flight_nc_file = '0Inputs/MethaneAIRrf02_hrt.nc'
-        eop_file = '0Inputs/eop19622020.txt'
+        eop_file = '0Inputs/EOP-Last5Years_celestrak_20210723.txt'
 
     mintime = np.min(granule.frameDateTime)
     maxtime = np.max(granule.frameDateTime)
@@ -440,7 +446,7 @@ if(molecule == 'ch4'):
         args2=str(dem_file)
         args3=str(filename)
         args4=str(savepath)
-        args5=str(os.path.join(root_data,'0Inputs/eop19622020.txt'))
+        args5=str(os.path.join(root_data,'0Inputs/EOP-Last5Years_celestrak_20210723.txt'))
         args6=str(os.path.join(root_data,'0User_Functions/'))
         subprocess.call(['/home/econway/anaconda3/envs/r4-base/bin/Rscript', 'Orthorectification_Avionics_NC_Fast_Hydra.R', args1, args2, args3, args4, args5, args6])
     else:
@@ -868,10 +874,10 @@ elif(molecule == 'o2'):
 
     if(flight == 'RF01'):
         flight_nc_file = '0Inputs/MethaneAIRrf01_hrt.nc'
-        eop_file = '0Inputs/eop19622020.txt'
+        eop_file = '0Inputs/EOP-Last5Years_celestrak_20210723.txt'
     elif(flight == 'RF02'):
         flight_nc_file = '0Inputs/MethaneAIRrf02_hrt.nc'
-        eop_file = '0Inputs/eop19622020.txt'
+        eop_file = '0Inputs/EOP-Last5Years_celestrak_20210723.txt'
 
     mintime = np.min(granule.frameDateTime)
     maxtime = np.max(granule.frameDateTime)
@@ -894,7 +900,7 @@ elif(molecule == 'o2'):
         args2=str(dem_file)
         args3=str(filename)
         args4=str(savepath)
-        args5=str(os.path.join(root_data,'0Inputs/eop19622020.txt'))
+        args5=str(os.path.join(root_data,'0Inputs/EOP-Last5Years_celestrak_20210723.txt'))
         args6=str(os.path.join(root_data,'0User_Functions/'))
         subprocess.call(['/home/econway/anaconda3/envs/r4-base/bin/Rscript', 'Orthorectification_Avionics_NC_Fast_Hydra.R', args1, args2, args3, args4, args5, args6])
     else:
