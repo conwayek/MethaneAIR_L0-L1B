@@ -789,32 +789,20 @@ if(molecule == 'ch4'):
     
         x = m.write_splat_l1_coadd(str(cwd),str(savepath),str(timestamp),str(l1DataDir),xtrk_aggfac=1,atrk_aggfac=1,ortho_step='avionics')
 
-        if not os.path.exists(logfile_native):
-            with FileLock(logfile_native):
-                with open(logfile_native,'w') as f:
-                    f.write(str('Filename')+' '+str('Priority Index')+'\n' )
-                    f.write(str(os.path.join(l1DataDir,'MethaneAIR_L1B_CH4_'+str(timestamp)+'.nc'))+' '+str(priority)+'\n' )
-                f.close()
-        else:
-            with FileLock(logfile_native):
-                with open(logfile_native,'a') as f:
-                    f.write(str(os.path.join(l1DataDir,'MethaneAIR_L1B_CH4_'+str(timestamp)+'.nc'))+' '+str(priority)+'\n' )
-                f.close()
+        lockname=logfile_native+'.lock'
+        with FileLock(lockname):
+            f = open(logfile_native,'a+') 
+            f.write(str(os.path.join(l1DataDir,'MethaneAIR_L1B_CH4_'+str(timestamp)+'.nc'))+' '+str(priority)+'\n' )
+            f.close()
         os.remove(os.path.join(cwd,'MethaneAIR_L1B_CH4'+'_'+timestamp+'.nc'))
         name = 'MethaneAIR_L1B_CH4'+'_'+timestamp+'.nc'
         filename = os.path.join(l1DataDir,name)
         aggregate.main(filename,l1AggDataDir,xfac,yfac)
-        if not os.path.exists(logfile_agg):
-            with FileLock(logfile_agg):
-                with open(logfile_agg,'w') as f:
-                    f.write(str('Filename')+' '+str('Priority Index')+'\n' )
-                    f.write(str(os.path.join(l1AggDataDir,'MethaneAIR_L1B_CH4_'+str(timestamp)+'.nc'))+' '+str(priority)+'\n' )
-                f.close()
-        else:
-            with FileLock(logfile_agg):
-                with open(logfile_agg,'a') as f:
-                    f.write(str(os.path.join(l1AggDataDir,'MethaneAIR_L1B_CH4_'+str(timestamp)+'.nc'))+' '+str(priority)+'\n' )
-                f.close()
+        lockname=logfile_agg+'.lock'
+        with FileLock(lockname):
+            f = open(logfile_agg,'a+') 
+            f.write(str(os.path.join(l1AggDataDir,'MethaneAIR_L1B_CH4_'+str(timestamp)+'.nc'))+' '+str(priority)+'\n' )
+            f.close()
     
     
     
@@ -1074,31 +1062,19 @@ elif(molecule == 'o2'):
             subprocess.call(['/home/econway/anaconda3/envs/r4-base/bin/Rscript', 'Orthorectification_Optimized_NC_Fast_O2_Hydra.R', args1, args2, args3, args4, args5, args6,args7, args8, args9, args10, args11, args12, args13,args14])
     
         x = o.write_splat_l1_coadd(str(cwd),str(savepath),str(timestamp),str(l1DataDir),xtrk_aggfac=1,atrk_aggfac=1,ortho_step='avionics')
-        if not os.path.exists(logfile_native):
-            with FileLock(logfile_native):
-                with open(logfile_native,'w') as f:
-                    f.write(str('Filename')+' '+str('Priority Index')+'\n' )
-                    f.write(str(os.path.join(l1DataDir,'MethaneAIR_L1B_O2_'+str(timestamp)+'.nc'))+' '+str(priority)+'\n' )
-                f.close()
-        else:
-            with FileLock(logfile_native):
-                with open(logfile_native,'a') as f:
-                    f.write(str(os.path.join(l1DataDir,'MethaneAIR_L1B_O2_'+str(timestamp)+'.nc'))+' '+str(priority)+'\n' )
-                f.close()
+        lockname=logfile_native+'.lock'
+        with FileLock(lockname):
+            f = open(logfile_native,'a+') 
+            f.write(str(os.path.join(l1DataDir,'MethaneAIR_L1B_O2_'+str(timestamp)+'.nc'))+' '+str(priority)+'\n' )
+            f.close()
         os.remove(os.path.join(cwd,'MethaneAIR_L1B_O2'+'_'+timestamp+'.nc'))
         name = 'MethaneAIR_L1B_O2'+'_'+timestamp+'.nc'
         filename = os.path.join(l1DataDir,name)
         aggregate.main(filename,l1AggDataDir,xfac,yfac)
-        if not os.path.exists(logfile_agg):
-            with FileLock(logfile_agg):
-                with open(logfile_agg,'w') as f:
-                    f.write(str('Filename')+' '+str('Priority Index')+'\n' )
-                    f.write(str(os.path.join(l1AggDataDir,'MethaneAIR_L1B_O2_'+str(timestamp)+'.nc'))+' '+str(priority)+'\n' )
-                f.close()
-        else:
-            with FileLock(logfile_agg):
-                with open(logfile_agg,'a') as f:
-                    f.write(str(os.path.join(l1AggDataDir,'MethaneAIR_L1B_O2_'+str(timestamp)+'.nc'))+' '+str(priority)+'\n' )
-                f.close()
+        lockname=logfile_agg+'.lock'
+        with FileLock(lockname):
+            f = open(logfile_agg,'a+') 
+            f.write(str(os.path.join(l1AggDataDir,'MethaneAIR_L1B_O2_'+str(timestamp)+'.nc'))+' '+str(priority)+'\n' )
+            f.close()
     
     print('Total Time(s) for ',nframes,' Frames = ' ,(time.time() - t_start))
