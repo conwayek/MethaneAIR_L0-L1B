@@ -1681,7 +1681,6 @@ class Alignment(object):
                                 filename = os.path.join('Final_'+inputCH4Times+'.png')
                                 plt.savefig(filename,dpi=1000)
                                 plt.close()
-                                exit()
 
     def assign_data(self,rad,raderr,wvl,radflag,lon,lat,clon,clat,vza,sza,vaa,saa,aza,obsalt,surfalt,time,ac_lon,ac_lat,ac_alt_surf,ac_surf_alt,ac_pix_bore,ac_pos,a1,a2,b1,b2,c1,c2,d1,d2):
         wvl[:,a1:a2,b1:b2] = self.x1['Wavelength'][:,c1:c2,d1:d2]
