@@ -1,4 +1,5 @@
 import datetime
+from filelock import FileLock
 import math
 from PIL import Image
 import matplotlib.pyplot as plt
@@ -18,9 +19,36 @@ from skimage.measure import block_reduce
 class Alignment(object):
 
     def __init__(self,inputfile):
+        logfile_ch4_native = '/n/holylfs04/LABS/wofsy_lab/Lab/MethaneAIR/level1/RF02/EKC_V4_with_Stray/CH4_NATIVE/log_file.txt' 
+        g = open(logfile_ch4_native,'r')
+        native = g.readlines()  
+        g.close()
+        nfiles = len(native)
+         
+        native_ch4_files = []
+        native_ch4_priority = []
+        
+        for i in range(nfiles):
+            native_ch4_files.append(os.path.basename(native[i].split(' ')[0]))
+            native_ch4_priority.append((native[i].split(' ')[1]).split('\n')[0])
+
+        #logfile_o2_native = '/n/holylfs04/LABS/wofsy_lab/Lab/MethaneAIR/level1/RF02/EKC_V4_with_Stray/O2_NATIVE/log_file.txt' 
+        #g = open(logfile_o2_native,'r')
+        #native = g.readlines()  
+        #g.close()
+        #nfiles = len(native)
+        # 
+        #native_o2_files = []
+        #native_o2_priority = []
+        #
+        #for i in range(nfiles):
+        #    native_o2_files.append(os.path.basename(native[i].split(' ')[0]))
+        #    native_o2_priority.append((native[i].split(' ')[1]).split('\n')[0])
+       
+
         method = cv2.TM_SQDIFF_NORMED
         ### GET THE LIST OF CH4 FILES FIRST
-        ch4dir = '/n/holylfs04/LABS/wofsy_lab/Lab/MethaneAIR/level1/RF02/EKC_V4/CH4_NATIVE/'
+        ch4dir = '/n/holylfs04/LABS/wofsy_lab/Lab/MethaneAIR/level1/RF02/EKC_V4_with_Stray/CH4_NATIVE/'
         CH4Files = []
         CH4Times = []
         CH4StartTime = []
@@ -31,20 +59,17 @@ class Alignment(object):
                 count=count+1
                 base=os.path.basename(file)
                 name=(base.split(".nc"))[0]
-                name=(name.split("_202106"))[0]
-                name=(name.split("CH4_"))[1]
-                end=(name.split("_"))[1]
-                end=(end.split("T"))[1]
+                start = name[28:34]
+                end = name[44:50]
+                name = name[19:66]
                 CH4Files.append(os.path.join(ch4dir, file))
                 CH4Times.append(name)
                 CH4EndTime.append(end)
-                start=(name.split("_"))[0]
-                start=(start.split("T"))[1] 
                 CH4StartTime.append(start)
     
     
         ### GET THE LIST OF O2 FILES NEXT
-        o2dir = '/n/holylfs04/LABS/wofsy_lab/Lab/MethaneAIR/level1/RF02/EKC_V4/O2_NATIVE/'
+        o2dir = '/n/holylfs04/LABS/wofsy_lab/Lab/MethaneAIR/level1/RF02/EKC_V4_with_Stray/O2_NATIVE/'
         O2Files = []
         O2Times = []
         O2StartTime = []
@@ -52,32 +77,26 @@ class Alignment(object):
         for file in os.listdir(o2dir):
             count=count+1
             if file.endswith(".nc"):
-                O2Files.append(os.path.join(o2dir, file))
                 base=os.path.basename(file)
                 name=(base.split(".nc"))[0]
-                name=(name.split("_202106"))[0]
-                name=(name.split("O2_"))[1]
+                start = name[27:33]
+                end = name[43:49]
+                name = name[18:65]
+                O2Files.append(os.path.join(o2dir, file))
                 O2Times.append(name)
-                end=(name.split("_"))[1]
-                end=(end.split("T"))[1]
                 O2EndTime.append(end)
-                start=(name.split("_"))[0]
-                start=(start.split("T"))[1]
                 O2StartTime.append(start)
-        
+
         inputCH4Times = []
         inputCH4StartTime = []
         inputCH4EndTime = []
         base=os.path.basename(inputfile)
         name=(base.split(".nc"))[0]
-        name=(name.split("_202106"))[0]
-        name=(name.split("CH4_"))[1]
-        end=(name.split("_"))[1]
-        end=(end.split("T"))[1]
+        start = name[28:34]
+        end = name[44:50]
+        name = name[19:66]
         inputCH4Times=name
         inputCH4EndTime=end
-        start=(name.split("_"))[0]
-        start=(start.split("T"))[1] 
         inputCH4StartTime=start
         
         hseconds = abs(np.int(inputCH4EndTime)) % 100
@@ -234,8 +253,10 @@ class Alignment(object):
         
                         if((nframesch4 <= 10) and (nframesch4 >= 6)):
                             cut = np.int(1)
-                            ch4_cut = np.zeros(( (nframesch4 - np.int(2*cut)  ) ,  (datach4.shape[1] - 400 )   ))
-                            ch4_cut = datach4[cut:nframesch4-cut,(ch4_start+400):(ch4_start+400+400)]
+                            #ch4_cut = np.zeros(( (nframesch4 - np.int(2*cut)  ) ,  (datach4.shape[1] - 400 )   ))
+                            #ch4_cut = datach4[cut:nframesch4-cut,(ch4_start+400):(ch4_start+400+400)]
+                            ch4_cut = np.zeros(( (nframesch4 - np.int(2*cut)  ) ,  int(ch4_xlen - 100 )   ))
+                            ch4_cut = datach4[np.int(1*cut):np.int(nframesch4-1*cut),(ch4_start+50):(ch4_end-50)]
                         elif(nframesch4 > 10 ):
                             ch4_xlen =  int(ch4_end - ch4_start)
                             #cut = np.floor(nframesch4/80)
@@ -284,8 +305,23 @@ class Alignment(object):
                             # MPy is the location in O2 data where the "cut" CH4 frame matches O2. 
                 
                             ashift = cut - MPy
-                            
-                            if( (xshift >= 295) and (xshift <= 315) ): 
+                            if(abs(ashift) > 2):
+                                print('Atrack Shift fails')
+                                ashift = 0 
+                                print('Assigning Atrack shift = 0 : the default')
+                            if((abs(xshift) > 315) or (abs(xshift) < 295)):
+                                print('Xtrack Shift fails')
+                                print('Assigning Xtrack shift = 304 : the default')
+                                xshift = 304 
+
+                        elif(x == 1):  
+                            print('Very few frames:')
+                            print('Assigning Atrack shift = 0 : the default')
+                            print('Assigning Xtrack shift = 304 : the default')
+                            ashift = 0 
+                            xshift = 304 
+
+                        if( (xshift >= 295) and (xshift <= 315) ): 
                             #if( (xshift >= 0)):# and (xshift <= 340) ): 
                                 # Step 3: Draw the rectangle on large_image
                                 #cv2.rectangle(large_image, (MPx,MPy),(MPx+tcols,MPy+trows),(0,0,255),2)
@@ -1424,8 +1460,9 @@ class Alignment(object):
                                 atrk_aggfac = 3
                                 filename = filech4.split(".nc")[0]
                                 filename = filename.split("CH4_NATIVE/")[1]
-                                l1b_ch4_dir = '/n/holylfs04/LABS/wofsy_lab/Lab/MethaneAIR/level1/RF02/EKC_V4/CH4_15x3_Aligned/' 
+                                l1b_ch4_dir = '/n/holylfs04/LABS/wofsy_lab/Lab/MethaneAIR/level1/RF02/EKC_V4_with_Stray/CH4_15x3_Aligned/' 
                                 l1_outfile = os.path.join(l1b_ch4_dir+filename+'.nc')
+                                logfile_ch4 = os.path.join(l1b_ch4_dir+'log_file_ch4_aligned.txt') 
                                 #l1_outfile = str(filename)+'.nc'
                                 
                                 norm_1d = block_reduce(np.ones(obsalt_new.shape),block_size=(atrk_aggfac,),func=np.mean)
@@ -1505,11 +1542,19 @@ class Alignment(object):
                                 l1.add_radiance_band(wvl_new,rad_new,rad_err=rad_err_new,rad_flag=rad_flags_new)
                                 l1.close()
         
+                                  
+                                  
+                                found_match=False
+                                for abc in range(len(native_ch4_files)):
+                                    if(found_match==False and (str(os.path.basename(filech4) == str(native_ch4_files[abc]))) ):
+                                        priority =native_ch4_priority[abc]      
+                                        found_match=True
         
-        
-        
-        
-        
+                                lockname=logfile_ch4+'.lock'
+                                with FileLock(lockname):
+                                    f = open(logfile_ch4,'a+') 
+                                    f.write(str(l1_outfile)+' '+str(priority)+'\n' )
+                                    f.close()
         
         
         
@@ -1519,8 +1564,9 @@ class Alignment(object):
         
                                 filename = fileo2.split(".nc")[0]
                                 filename = filename.split("O2_NATIVE/")[1]
-                                l1b_o2_dir = '/n/holylfs04/LABS/wofsy_lab/Lab/MethaneAIR/level1/RF02/EKC_V4/O2_15x3_Aligned/' 
+                                l1b_o2_dir = '/n/holylfs04/LABS/wofsy_lab/Lab/MethaneAIR/level1/RF02/EKC_V4_with_Stray/O2_15x3_Aligned/' 
                                 l1_outfile = os.path.join(l1b_o2_dir+filename+'.nc')
+                                logfile_o2 = os.path.join(l1b_o2_dir+'log_file_o2_aligned.txt') 
                                 #l1_outfile = str(filename)+'.nc'
         
                                 norm_1d = block_reduce(np.ones(obsalt_o2.shape),block_size=(atrk_aggfac,),func=np.mean)
@@ -1601,6 +1647,15 @@ class Alignment(object):
                                 l1.set_2d_geofield('RelativeAzimuthAngle', aza_o2)
                                 l1.add_radiance_band(wvl_o2,rad_o2,rad_err=rad_err_o2,rad_flag=rad_flags_o2)
                                 l1.close()
+                                  
+        
+                                lockname=logfile_o2+'.lock'
+                                with FileLock(lockname):
+                                    f = open(logfile_o2,'a+') 
+                                    f.write(str(l1_outfile)+' '+str(priority)+'\n' )
+                                    f.close()
+                                  
+                                  
                                 fig, ax = plt.subplots(2,2)
                                 plt.rcParams.update({'font.size': 8})
         
@@ -1626,6 +1681,7 @@ class Alignment(object):
                                 filename = os.path.join('Final_'+inputCH4Times+'.png')
                                 plt.savefig(filename,dpi=1000)
                                 plt.close()
+                                exit()
 
     def assign_data(self,rad,raderr,wvl,radflag,lon,lat,clon,clat,vza,sza,vaa,saa,aza,obsalt,surfalt,time,ac_lon,ac_lat,ac_alt_surf,ac_surf_alt,ac_pix_bore,ac_pos,a1,a2,b1,b2,c1,c2,d1,d2):
         wvl[:,a1:a2,b1:b2] = self.x1['Wavelength'][:,c1:c2,d1:d2]
