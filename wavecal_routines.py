@@ -11,7 +11,7 @@ from netCDF4 import Dataset
 import netCDF4 as nc4
 from scipy.interpolate import interp1d
 from matplotlib import pyplot as plt
-#import time
+import time
 from sys import exit
 import numba as nb
 
@@ -541,7 +541,7 @@ def fitspectra(Data,l1FitPath,whichBand,solarRefFile,calidata,o2spectraReffile,c
     start = 0
 
     #for j in range (pixlimitX[0],pixlimitX[1]):
-   
+    wavelength_raw = wavelength 
     for j in range(rad_obs.shape[0]):
     
         xTrack = j
@@ -554,22 +554,24 @@ def fitspectra(Data,l1FitPath,whichBand,solarRefFile,calidata,o2spectraReffile,c
           #  isrf_lut0 = isrf[xTrack,:,:] 
             
         #OBSERVED DATA   
-            
-        wavelength_obs = wavelength[xTrack,:].squeeze()
+        wavelength_obs = wavelength_raw[xTrack,:].squeeze()
         radiance_obs = rad_obs[xTrack,:].squeeze()
         
 
-
         if math.isnan( wavelength_obs[pixlimit[0]]):
-            print(str(xTrack)+ " has a nan values in wvl")
+            print(str(xTrack)+ " has a nan values in wvl window")
         elif math.isnan( radiance_obs[pixlimit[0]]):
-            print(str(xTrack)+ " has a nan values in rad")
+            print(str(xTrack)+ " has a nan values in rad window")
+        elif math.isnan( wavelength_obs[pixlimit[1]]):
+            print(str(xTrack)+ " has a nan values in wvl window")
+        elif math.isnan( radiance_obs[pixlimit[1]]):
+            print(str(xTrack)+ " has a nan values in rad window")
         else:    
             print('FITTING TRACK: '+str(xTrack))
             
             # GET THE GRID OF INTEREST FOR INTERPOLATION
-            width = 1*(pixlimit[1] - pixlimit[0])
-            d = np.linspace(wavelength_obs[pixlimit[0]],wavelength_obs[pixlimit[1]], width+1  )
+            gridwidth = 1*(pixlimit[1] - pixlimit[0])
+            d = np.linspace(wavelength_obs[pixlimit[0]],wavelength_obs[pixlimit[1]], gridwidth+1  )
             
             ##############################
             # DEFINE FITTING VARIABLES:
@@ -591,16 +593,16 @@ def fitspectra(Data,l1FitPath,whichBand,solarRefFile,calidata,o2spectraReffile,c
                     params.add(f2)
 
                 else:
-                    f0 = Parameter('par_f'+str(0),0.0421187)
+                    f0 = Parameter('par_f'+str(0),0.149264)
                     params.add(f0)
-                    sc_solar = Parameter('scale_solar',0.1893476*numframes,min=0)
+                    sc_solar = Parameter('scale_solar',0.0153476*numframes,min=0)
                     params.add(sc_solar) 
-                    f1 = Parameter('baseline0',101.3815)
-                    f2 = Parameter('baseline1',-0.159985)
-                    f3 = Parameter('baseline2',6.3120e-05)
+                    f1 = Parameter('baseline0', -1.34526326)
+                    f2 = Parameter('baseline1',0.00106887)
+                    #f3 = Parameter('baseline2',-6.3130e-04)
                     params.add(f1)
                     params.add(f2)
-                    params.add(f3)
+                    #params.add(f3)
                     #b1 = Parameter('al0',1.0)
                   #  b2 = Parameter('al1',0.0)
                   #  b3 = Parameter('al2',0)
@@ -617,7 +619,7 @@ def fitspectra(Data,l1FitPath,whichBand,solarRefFile,calidata,o2spectraReffile,c
                     params.add(sc_ch4)
                     params.add(sc_h2o)
                 else:
-                    sc_o2 = Parameter('scale_o2',5.8065e+24,max=1e28, min=1)
+                    sc_o2 = Parameter('scale_o2',1.13e+25,max=1e28, min=1)
                     params.add(sc_o2)
                     #sc_cia = Parameter('scale_cia',8e+24,max=1e28, min=1)
                     #params.add(sc_cia)
@@ -644,9 +646,9 @@ def fitspectra(Data,l1FitPath,whichBand,solarRefFile,calidata,o2spectraReffile,c
                         for i in range(len(isrf_w)):
                             if((d_min < wavelength[-1,i]) and (d_max > wavelength[0,i]) ):
                                 index.append(i)
-                                p1 = Parameter('squeeze'+str(count),width[i],max=1.2,min=0.8)
+                                p1 = Parameter('squeeze'+str(count),0.9381123,max=1.2,min=0.8)
                                 params.add(p1)
-                                p2 = Parameter('sharp'+str(count),sharp[i],max=1.2,min=0.8)
+                                p2 = Parameter('sharp'+str(count),1.051526,max=1.2,min=0.8)
                                 params.add(p2)
                                 count=count+1
                             else:
@@ -676,7 +678,7 @@ def fitspectra(Data,l1FitPath,whichBand,solarRefFile,calidata,o2spectraReffile,c
                             for i in range(len(isrf_w)):
                                 if((d_min < wavelength[-1,i]) and (d_max > wavelength[0,i]) ):
                                     index.append(i)
-                                    p1 = Parameter('width'+str(count),width[i],max=1,min=0.01)
+                                    p1 = Parameter('width'+str(count),0.1445,max=1,min=0.01)
                                     params.add(p1)
                                     count=count+1
                                 else:
@@ -744,10 +746,10 @@ def fitspectra(Data,l1FitPath,whichBand,solarRefFile,calidata,o2spectraReffile,c
                     params.add(sc_solar) 
                     f1 = Parameter('baseline0',b0O2)
                     f2 = Parameter('baseline1',b1O2)
-                    f3 = Parameter('baseline2',b2O2)
+                    #f3 = Parameter('baseline2',b2O2)
                     params.add(f1)
                     params.add(f2)
-                    params.add(f3)
+                    #params.add(f3)
                     
                     sc_o2 = Parameter('scale_o2',scaleo2,max=1e28, min=1)
                     params.add(sc_o2)
@@ -843,7 +845,7 @@ def fitspectra(Data,l1FitPath,whichBand,solarRefFile,calidata,o2spectraReffile,c
                 errorf0 = 100*lsqFit.params['par_f'+str(0)].stderr/lsqFit.params['par_f'+str(0)].value
                 errorb0o2=100.0*lsqFit.params['baseline0'].stderr/lsqFit.params['baseline0'].value
                 errorb1o2=100.0*lsqFit.params['baseline1'].stderr/lsqFit.params['baseline1'].value
-                errorb2o2=100.0*lsqFit.params['baseline2'].stderr/lsqFit.params['baseline2'].value
+                #errorb2o2=100.0*lsqFit.params['baseline2'].stderr/lsqFit.params['baseline2'].value
             else:
                 pass
  
@@ -886,24 +888,32 @@ def fitspectra(Data,l1FitPath,whichBand,solarRefFile,calidata,o2spectraReffile,c
                         scaleh2o=lsqFit.params['scale_h2o'].value
                         
                         f.write(str(int(xtrackaggfactor))+' '+str(int(j))+' '+str(f0CH4)+' '+str(solarCH4)+' '+str(b0CH4)+' '+str(b1CH4)+' '+str(scalech4)+' '+str(scaleco2)+' '+str(scaleh2o)+'\n')
-
+                        f.flush()
                         
                         if(ISRF=='GAUSS'):
                             g.write(str(int(xtrackaggfactor))+' '+str(int(j)))
+                            g.flush()
                             for k in range(len(index)):
-                                g.write(' '+str(index[k])+' '+lsqFit.params['width'+str(k)].value)
+                                g.write(' '+str(index[k])+' '+str(lsqFit.params['width'+str(k)].value))
+                                g.flush()
                             g.write('\n')
+                            g.flush()
                         elif(ISRF=='SQUEEZE'):
                             g.write(str(int(xtrackaggfactor))+' '+str(int(j)))
+                            g.flush()
                             for k in range(len(index)):
-                                g.write(' '+str(index[k])+' '+lsqFit.params['squeeze'+str(k)].value+' '+lsqFit.params['sharp'+str(k)].value)
-                                
+                                g.write(' '+str(index[k])+' '+str(lsqFit.params['squeeze'+str(k)].value)+' '+str(lsqFit.params['sharp'+str(k)].value))
+                                g.flush()
                             g.write('\n')
+                            g.flush()
                         elif(ISRF=='SUPER'):
                             g.write(str(int(xtrackaggfactor))+' '+str(int(j)))
+                            g.flush()
                             for k in range(len(index)):
-                                g.write(' '+str(index[k])+' '+lsqFit.params['width'+str(k)].value+' '+lsqFit.params['shape'+str(k)].value)
+                                g.write(' '+str(index[k])+' '+str(lsqFit.params['width'+str(k)].value)+' '+str(lsqFit.params['shape'+str(k)].value))
+                                g.flush()
                             g.write('\n')
+                            g.flush()
 
 
                     else:
@@ -911,29 +921,39 @@ def fitspectra(Data,l1FitPath,whichBand,solarRefFile,calidata,o2spectraReffile,c
                         solarO2=lsqFit.params['scale_solar'].value
                         b0O2=lsqFit.params['baseline0'].value
                         b1O2=lsqFit.params['baseline1'].value
-                        b2O2=lsqFit.params['baseline2'].value
+                        #b2O2=lsqFit.params['baseline2'].value
                         scaleo2=lsqFit.params['scale_o2'].value
-                        f.write(str(int(xtrackaggfactor))+' '+str(int(j))+' '+str(f0O2)+' '+str(solarO2)+' '+str(b0O2)+' '+str(b1O2)+' '+str(b2O2)+' '+str(scaleo2)+'\n')
-                         
+                        #f.write(str(int(xtrackaggfactor))+' '+str(int(j))+' '+str(f0O2)+' '+str(solarO2)+' '+str(b0O2)+' '+str(b1O2)+' '+str(b2O2)+' '+str(scaleo2)+'\n')
+                        f.write(str(int(xtrackaggfactor))+' '+str(int(j))+' '+str(f0O2)+' '+str(solarO2)+' '+str(b0O2)+' '+str(b1O2)+' '+str(scaleo2)+'\n')
+                        f.flush()
                         if(ISRF=='GAUSS'):
                             g.write(str(int(xtrackaggfactor))+' '+str(int(j)))
+                            g.flush()
                             for k in range(len(index)):
-                                g.write(' '+str(index[k])+' '+lsqFit.params['width'+str(k)].value)
+                                g.write(' '+str(index[k])+' '+str(lsqFit.params['width'+str(k)].value))
+                                g.flush()
                             g.write('\n')
+                            g.flush()
                         elif(ISRF=='SQUEEZE'):
                             g.write(str(int(xtrackaggfactor))+' '+str(int(j)))
+                            g.flush()
                             for k in range(len(index)):
-                                g.write(' '+str(index[k])+' '+lsqFit.params['squeeze'+str(k)].value+' '+lsqFit.params['sharp'+str(k)].value)
-                                
+                                g.write(' '+str(index[k])+' '+str(lsqFit.params['squeeze'+str(k)].value)+' '+str(lsqFit.params['sharp'+str(k)].value))
+                                g.flush()
                             g.write('\n')
+                            g.flush()
                         elif(ISRF=='SUPER'):
                             g.write(str(int(xtrackaggfactor))+' '+str(int(j)))
+                            g.flush()
                             for k in range(len(index)):
-                                g.write(' '+str(index[k])+' '+lsqFit.params['width'+str(k)].value+' '+lsqFit.params['shape'+str(k)].value)
+                                g.write(' '+str(index[k])+' '+str(lsqFit.params['width'+str(k)].value)+' '+str(lsqFit.params['shape'+str(k)].value))
+                                g.flush()
                             g.write('\n')                       
+                            g.flush()
                         
     f.close()
     g.close()
+    time.sleep(30) 
     return()
 
 ###################################################
@@ -1067,12 +1087,6 @@ def spectrumResidual_CH4(params,specwave,CH4,CO2,H2O,radiance_obs,wavelength_obs
     residual = np.zeros(gridwidth + 1)
     residual = Isim - Ioriginal
    
-    plt.plot(newobs_wavelength,Isim,label='Sim')
-    plt.plot(newobs_wavelength,Ioriginal,label='shifted')     
-    plt.plot(d,Ioriginal,label='original')     
-    plt.legend()
-    plt.savefig('res.png')
-    plt.close()
     
     return ( residual)
 ###################################################
@@ -1094,7 +1108,7 @@ def spectrumResidual_O2(params,specwave,O2,CIA,radiance_obs,wavelength_obs,xTrac
    
    a0 = params['baseline0'].value
    a1 = params['baseline1'].value
-   a2 = params['baseline2'].value
+   #a2 = params['baseline2'].value
    
    
  #  b1 = params['al1'].value
@@ -1106,7 +1120,8 @@ def spectrumResidual_O2(params,specwave,O2,CIA,radiance_obs,wavelength_obs,xTrac
    
    for i in range(gridwidth+1):
      #   albedo[i] =  1.0 + (b1 * (d[i] - 1250)) + (b2 * (d[i] - 1250.0)**2) 
-        baseline[i] = a0 + (a1 * d[i]) + (a2*d[i]*d[i]) 
+        #baseline[i] = a0 + (a1 * d[i]) + (a2*d[i]*d[i]) 
+        baseline[i] = a0 + (a1 * d[i]) #+ (a2*d[i]*d[i]) 
         
 
 
@@ -1208,6 +1223,12 @@ def spectrumResidual_O2(params,specwave,O2,CIA,radiance_obs,wavelength_obs,xTrac
    Isim = np.zeros(gridwidth+1)
    Isim = (( IO2 + ICIA ) *ISOLAR) + baseline
    residual =  Isim - Ioriginal
-   
+  
+   #plt.plot(newobs_wavelength,Ioriginal,label='Iobs')
+   #plt.plot(newobs_wavelength,Isim,label='Isim')
+   #plt.legend()
+   #plt.savefig('test_o2_fit.png')
+   #plt.close()
+   #exit() 
 
    return ( residual)

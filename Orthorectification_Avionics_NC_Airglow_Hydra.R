@@ -1,52 +1,53 @@
-
 args <- commandArgs(TRUE)
 
   # Customize Inputs-----------------------------------------------------------
 
   # Netcdf flight data file
-  file_flightnc           = args[1]#'/n/holylfs04/LABS/wofsy_lab/Lab/econway/DATA/MethaneAIR21rf05s.nc',
+  file_flightnc =args[1] 
 
   # Digital Elevation Map created using DEM_elevatr.R
-  file_dem                = args[2]#"/n/holyscratch01/wofsy_lab/econway/RF05/O2_NATIVE/100/dem.tiff",
+  file_dem = args[2] 
 
-  # Level 1 file. Must be a NetCDF
-  file_L1                 = args[3]#"/n/holylfs04/LABS/wofsy_lab/Lab/MethaneAIR/level1/RF05/O2Avionics/MethaneAIR_L1B_O2_20210803T191229_20210803T191259_20210804T102613.nc",
-  L1_var_time             = "GEOS_5_tau"
+  # Level 1 file. Must be a NetCDF 
+  file_L1 = args[3] 
+  L1_var_time = "GEOS_5_tau"
 
-  # Directory to store output
-  dir_output              = args[4]#"/n/holyscratch01/wofsy_lab/benmergui/Orthorectification_Avionics/RF05/",
+  # Directory to store output 
+  dir_output = args[4] 
 
-  # Aggregation factor for DEM (higher number speeds computation, lower number more accurate)
-  dem_aggrregation        = 4
+  # Heights above WGS84 to orthorectify against
+  celestial_sphere_height_km = args[14]
 
   # Default Inputs-------------------------------------------------------------
 
   # Framerate in seconds
-  framerate               = 0.1
+  framerate = 0.1
 
   # Number of across track pixels
-  points_x                = 1280
+  points_x = 1280
 
   # Variable to select longitude and latitude from flight data
-  var_lat                 =  args[7]
-  var_lon                 =  args[8]
-  var_pitch               =  args[9]
-  var_roll                =  args[10]
-  var_heading             =  args[11]
-  var_alt_geoid           =  args[12]
-  var_geoid_height_WGS84  =  args[13]
+  var_lat                 = args[7]
+  var_lon                 = args[8]
+  var_pitch               = args[9]
+  var_roll                = args[10]
+  var_heading             = args[11]
+  var_alt_geoid           = args[12]
+  var_geoid_height_WGS84  = args[13]
 
-  # Earth Orientation Parameter (EOP) file
-  file_eop                = args[5]  #"/n/holylfs04/LABS/wofsy_lab/Lab/econway/DATA/EOP-Last5Years_celestrak_20210723.txt",
+  # Earth Orientation Parameter (EOP) file 
+  file_eop = agrs[5] 
 
   # Directory with user defined functions
-  dir_lib                 = args[6] #"/n/holylfs04/LABS/wofsy_lab/Lab/econway/DATA/0User_Functions/",
+  dir_lib = args[6] 
 
   # Instrument angular field of view
-  FOV                     = 33.7
+  FOV = 33.7
 
   # Instrument focual length (mm)
-  f                       = 16
+  f = 16
+  
+ 
 
   # Dependencies---------------------------------------------------------------
   library(orientlib)
@@ -69,7 +70,9 @@ args <- commandArgs(TRUE)
   for(tick in 1:length(scripts)) {
     source(scripts[tick])
   }
-  print('hello')
+
+  # Special!
+  #source("./intersect_ellipsoid.R")
 
   # Load Inputs----------------------------------------------------------------
 
@@ -77,7 +80,6 @@ args <- commandArgs(TRUE)
   flight_nc <- ncdf4::nc_open(file_flightnc)
 
   # Digital elevation map
-  #dem <- readRDS(file_dem)
   dem <- raster::raster(file_dem)
 
   # Earth Orientation Parameters
@@ -98,7 +100,7 @@ args <- commandArgs(TRUE)
                               substr(flightdate, 1, 2), "-",
                               substr(flightdate, 4, 5))
 
-  #  Get the variables
+  #  Get the variables 
   time                <- as.vector(ncvar_get(flight_nc, "Time"))
   lat                 <- as.vector(ncvar_get(flight_nc, var_lat))
   lon                 <- as.vector(ncvar_get(flight_nc, var_lon))
@@ -118,9 +120,9 @@ args <- commandArgs(TRUE)
     length(heading),
     length(geoid),
     length(geoid_height_WGS84)
-  )
-
-  # Interpolate variables down to the highest frequency
+  ) 
+    
+  # Interpolate variables down to the highest frequency 
   lat_full                = splinefun(
                               x = seq(from = 1, to = len_full, length = length(lat)), y = lat
                             )(1:len_full)
@@ -133,26 +135,26 @@ args <- commandArgs(TRUE)
   roll_full               = splinefun(
                               x = seq(from = 1, to = len_full, length = length(roll)), y = roll
                             )(1:len_full)
-  # Use a constant approx for heading to deal with 360 crossing.
+  # Use a constant approx for heading to deal with 360 crossing. 
   heading_full            = approx(
-                              x     = seq(from = 1, to = len_full, length = length(heading)),
+                              x     = seq(from = 1, to = len_full, length = length(heading)), 
                               y     = heading,
                               xout  = 1:len_full,
                               method = "constant"
-                            )$y
+                            )$y 
   geoid_full              = splinefun(
                               x = seq(from = 1, to = len_full, length = length(geoid)), y = geoid
                             )(1:len_full)
   geoid_height_WGS84_full = splinefun(
                               x = seq(from = 1, to = len_full, length = length(geoid_height_WGS84)), y = geoid_height_WGS84
                             )(1:len_full)
-
+ 
   # Generate a dataframe of the flight data
   flight_df <- data.frame(
     time = ymd_hms(paste(flightdate_string, "00:00:00 UTC")) +
       rep(seconds(ncvar_get(flight_nc, "Time")), each = len_full / length(time)) +
       rep((0:((len_full / length(time)) - 1))/(len_full / length(time)), length(time)),
-    geoid_height_WGS84  = geoid_height_WGS84_full,
+    geoid_height_WGS84  = geoid_height_WGS84_full, 
     alt_geoid           = geoid_full,
     lat                 = lat_full,
     lon                 = lon_full,
@@ -164,17 +166,17 @@ args <- commandArgs(TRUE)
   # * Level 1 retrieval data---------------------------------------------------
 
   # Generate a time object from the L1 data
-  L1_time <- ymd_hms("1985-01-01 00:00:00 UTC") + 60 * 60 * ncvar_get(L1_nc, L1_var_time) %>% seconds()
+  L1_time <- ymd_hms("1985-01-01 00:00:00 UTC") + 60 * 60 * ncvar_get(L1_nc, L1_var_time) %>% seconds() 
   # Add a timestep for the last pixel end
   L1_time <- c(L1_time, L1_time[length(L1_time)] + seconds(framerate))
 
   # Pull flight_df during the time interval
-  flight_df <- flight_df[(flight_df$time >= min(L1_time) - seconds(10)) &
+  flight_df <- flight_df[(flight_df$time >= min(L1_time) - seconds(10)) & 
     (flight_df$time <= max(L1_time) + seconds(1)), ]
   # Calculate time variables
   flight_df$MJD_UTC         <- utc2mjd(flight_df$time)
 
-  # Interpolate to the L1 times
+  # Interpolate to the L1 times 
   flight_df_L1 <- data.frame(
     time                = L1_time,
     geoid_height_WGS84  = approx(x = flight_df$time, y = flight_df$geoid_height_WGS84,  xout = L1_time)$y,
@@ -254,35 +256,6 @@ args <- commandArgs(TRUE)
   flight_df_L1$aircraft_lat       <- aircraft_geodetic$lat
   flight_df_L1$aircraft_alt_WGS84 <- aircraft_geodetic$alt
 
-  # * Digital Elevation Map----------------------------------------------------
-
-  # Find the centroid of the flight_df_L1 object
-  centroid <- data.frame(lon = mean(flight_df_L1$lon), lat = mean(flight_df_L1$lat))
-
-  # Calculate the expanded target area for isolating the DEM for orthorectificaiton
-  target_demarea_polygon <- centroids2sfcpolygons(
-    lon = centroid$lon,
-    lat = centroid$lat,
-    buffer_m = 15000)
-
-  # Generate the local DEM for orthorectification
-  dem_ortho <-  dem %>%
-    raster::crop(extent(st_bbox(target_demarea_polygon[[1]])[c(1,3,2,4)])) %>%
-    raster::aggregate(dem_aggrregation) 
-
-  # Convert the DEM to a data frame
-  crs(dem_ortho)  <- "+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"
-  r.pts           <- rasterToPoints(dem_ortho, spatial=TRUE)
-  target_ortho_df <- spTransform(r.pts, CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0")) %>% as.data.frame()
-  colnames(target_ortho_df) <- c("alt", "lon", "lat")
-  dem_ecef_df <- geodetic2ecef_WGS84(
-    lon = target_ortho_df$lon,
-    lat = target_ortho_df$lat,
-    alt = target_ortho_df$alt) %>% as.data.frame()
-  dem_ecef_df$lon <- target_ortho_df$lon
-  dem_ecef_df$lat <- target_ortho_df$lat
-  dem_ecef_df$alt <- target_ortho_df$alt
-
   # Orthorectification---------------------------------------------------------
 
   # Find the tangent plane
@@ -306,7 +279,28 @@ args <- commandArgs(TRUE)
     roll    = (pi/180) * flight_df_L1$roll
   )
 
-  # zhatprime = rotmat_basis[[1]] %*% rotmat_pointing[[1]] %*% c(0,0,1)
+  # Apply a reflection about the xy plane
+  rotmat_pointing <- lapply(rotmat_pointing, function(x) {
+    x %*% rbind(c(1,0,0), c(0,1,0), c(0,0,-1))
+  })
+
+  # Calculate the instrument boresight in ecef
+  boresight_ecef <- lapply(1:length(rotmat_pointing), function(x) { 
+    (rotmat_basis[[x]] %*% rotmat_pointing[[x]] %*% c(0,0,1)) %>%
+    as.vector
+  })
+
+  # Find the axis around wichto rotate to get the individual pixel bores
+  rotationaxis_ecef <- lapply(1:length(rotmat_pointing), function(x) {
+    (rotmat_basis[[x]] %*% rotmat_pointing[[x]] %*% c(1,0,0)) %>%
+    as.vector
+  })
+
+  # Find the pixel angles
+  pixel_angs <- (180/pi) * 2 * atan2(
+    seq(from = - f * tan((pi/180) * FOV/2), to = f * tan((pi/180) * FOV/2), length = 2 * points_x + 1),
+    (2*f)
+  )
 
   # Perform the orthorectification
   orthorectified_lon <- matrix(nrow = 2 * points_x + 1, ncol = nrow(flight_df_L1))
@@ -319,16 +313,20 @@ args <- commandArgs(TRUE)
 
   for(tick in 1:nrow(flight_df_L1)) {
 
-    # Perform the orthorectification
-    orthorectified <- orthorectification(
-      dem_ecef_df     = dem_ecef_df,
-      pos_ecef        = aircraft_ecef[tick,],
-      rotm_basis      = rotmat_basis[[tick]],
-      rotm_pointing   = rotmat_pointing[[tick]],
-      FOV             = FOV,
-      f               = f,
-      pixels          = 2 * points_x + 1,
-      output          = "geodetic")
+    pixel_bores <- sapply(pixel_angs, function(x) {
+      vecrotation(v = boresight_ecef[[tick]], n = as.vector(rotationaxis_ecef[[tick]]), theta_deg = x)
+    }) %>% t()
+
+    # Simply intersect with an ellipsoid inflated to the celestial sphere
+    orthorectified <- sapply(1:nrow(pixel_bores), function(x) { 
+      intersect_ellipsoid(
+        pos_ecef          = aircraft_ecef[tick,],
+        pixel_bore        = pixel_bores[x,],
+        elevation         = celestial_sphere_height_km[1] * 1000,
+        latitude          = aircraft_geodetic$lat[tick],
+        celestial_sphere  = TRUE,
+        output            = "geodetic") %>% unlist
+      }) %>% t %>% as.data.frame
     orthorectified_lon[, tick] <- orthorectified$lon
     orthorectified_lat[, tick] <- orthorectified$lat
     orthorectified_alt[, tick] <- orthorectified$alt
@@ -440,7 +438,7 @@ args <- commandArgs(TRUE)
     scan_eci[,tick,] <- geodetic2eci_WGS84(
           lon = lon[,tick],
           lat = lat[,tick],
-          alt = dem_height[,tick],
+          alt = celestial_sphere_height_km[1] * 1000,
           eop = do.call("rbind", replicate(nrow(lon), IERS_L1[tick,], simplify = FALSE)),
           mjd = rep(flight_df_L1$MJD_UTC[tick], nrow(lon))
     )
@@ -504,5 +502,6 @@ args <- commandArgs(TRUE)
   # Close our new output file
   nc_close(ncid_new)
 
+}
 
 

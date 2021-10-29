@@ -21,14 +21,13 @@ def main(flight_nc_file,mintime,maxtime,datenow,fov,buff):
     pitch = df['PITCH'][:,:]
     df.close()
 
-    mintime = (mintime - datenow).seconds 
-    maxtime = (maxtime - datenow).seconds 
+    mintime = int(np.floor((mintime - datenow).total_seconds())) 
+    maxtime = int(np.ceil((maxtime - datenow).total_seconds())) 
 
     x = np.linspace(0,len(time)-1,len(time))
 
     mintime= int(np.interp(mintime,time,x))
     maxtime= int(np.interp(maxtime,time,x))
-
     
     minlon = min(lon[mintime ] ,lon[maxtime ])
     maxlon = max(lon[mintime ] ,lon[maxtime ] )
@@ -60,7 +59,7 @@ def main(flight_nc_file,mintime,maxtime,datenow,fov,buff):
     cord = [(lon_min,lat_min),(lon_min,lat_max),(lon_max,lat_max),(lon_max,lat_min)]
     geom = Polygon(cord)
 
-    dem = py3dep.get_map("DEM", geom, resolution=80, geo_crs="epsg:4326", crs="epsg:4326")
+    dem = py3dep.get_map("DEM", geom, resolution=100, geo_crs="epsg:4326", crs="epsg:4326")
     dem.to_netcdf('dem.nc')
 
     df = xarray.open_dataset("dem.nc")

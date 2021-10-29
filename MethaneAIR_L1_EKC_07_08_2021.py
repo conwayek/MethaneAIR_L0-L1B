@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import netCDF4 as nc4
 import numpy as np
 import datetime as dt
 import struct
@@ -165,15 +166,15 @@ def ParseFrame(framenum,height,width,bindata):
     temp = struct.unpack_from('<{}h'.format(width),metaraw)
     metaraw = struct.pack('>{}h'.format(width),*temp)
       
-    Meta.partNum = metaraw[2:34].decode('ascii').rstrip('\x00')
-    Meta.serNum = metaraw[34:48].decode('ascii').rstrip('\x00')
-    Meta.fpaType = metaraw[48:64].decode('ascii').rstrip('\x00')
+    #Meta.partNum = metaraw[2:34].decode('ascii').rstrip('\x00')
+    #Meta.serNum = metaraw[34:48].decode('ascii').rstrip('\x00')
+    #Meta.fpaType = metaraw[48:64].decode('ascii').rstrip('\x00')
 #    print(Meta.partNum)
 #    print(Meta.serNum)
 #    print(Meta.fpaType)
     Meta.crc = struct.unpack_from('>I',metaraw[64:68])[0]
     Meta.frameCounter = struct.unpack_from('>i',metaraw[68:72])[0]
-    Meta.frameTime = struct.unpack_from('>f',metaraw[72:76])[0]
+    #Meta.frameTime = struct.unpack_from('>f',metaraw[72:76])[0]
     Meta.intTime = struct.unpack_from('>f',metaraw[76:80])[0]
     Meta.freq = struct.unpack_from('>f',metaraw[80:84])[0]
     Meta.boardTemp = struct.unpack_from('>f',metaraw[120:124])[0]
@@ -192,7 +193,9 @@ def ParseFrame(framenum,height,width,bindata):
     Meta.microsec = timelist[6]
     Meta.fpaTemp = struct.unpack_from('>f',metaraw[476:480])[0]
     Meta.intTimeTicks = struct.unpack_from('>I',metaraw[142:146])[0]
-    
+
+    Meta.frameTime = 0.100000 
+
     return [data,Meta]
 
 def ReadSeq(seqfile):
@@ -217,7 +220,6 @@ def ReadSeq(seqfile):
     Seq.NumFrames = temp[6]
     Seq.TrueImageSize = temp[8]
     Seq.NumPixels = Seq.ImageWidth*Seq.ImageHeight
-    
     ## Read raw frames
     rawframes = [fin.read(Seq.TrueImageSize) for i in range(Seq.NumFrames)]
     fin.close()
@@ -287,7 +289,7 @@ class MethaneAIR_L1(object):
         self.calidata = calidata 
         self.fitSZA = fitSZA
         self.SZA = SolZA
-        self.ALT = ALT
+        self.ALT = ALT/10000.0
         self.badPixelMapPath = badPixelMapPath
 
         self.xtol=float(xtol)
@@ -327,13 +329,13 @@ class MethaneAIR_L1(object):
         self.isrf_w = spec_cal_fid['central_wavelength'][:].data
         
 
+        self.wavCalCoef = spec_cal_fid['pix2nm_polynomial'][:]
+            
+            
         if(self.whichBand == 'O2'):
-            self.wavCalCoef = spec_cal_fid['pix2nm_polynomial'][:]
-            
-        else:
-            self.wavCalCoef = spec_cal_fid['pix2nm_polynomial'][:]
-            
-            
+            if('methaneair_o2_isrf_1280_footprints_20210722T153733.nc' in wavCalPath ):
+                self.wavCalCoef = self.wavCalCoef[::-1,:]
+                self.isrf_lut = self.isrf_lut[::-1,:,:]
             
 
         if self.wavCalCoef.shape[0] < self.wavCalCoef.shape[1]:
@@ -499,7 +501,7 @@ class MethaneAIR_L1(object):
         Data = np.float32(np.transpose(Data,(2,1,0)))
         # estimate noise
         self.logger.info('estimate noise')
-        Noise = np.sqrt((Data-darkData[...,np.newaxis])*ePerDN+(darkStd[...,np.newaxis]*ePerDN)**2)/ePerDN
+        Noise = np.sqrt((Data-darkData[...,np.newaxis])+(darkStd[...,np.newaxis])**2)
 #        Noise = np.sqrt((Data-darkOffsetDN)*ePerDN+readOutError**2)/ePerDN
         # remove dark
         Data = Data-darkData[...,np.newaxis]
@@ -628,29 +630,32 @@ class MethaneAIR_L1(object):
                                         self.isrf_lut,self.isrf_w,self.isrf_dw0,self.wavelength,self.pixlimit,self.fitisrf,
                                         self.ISRF,self.xtol,self.ftol,self.xtrackaggfactor) 
 
-
-            row,shift,agg_x = [],[],[]
-            for line in open(self.l1FitPath, 'r'):
-                    values = [float(s) for s in line.split()]
-                    row.append(values[0])
-                    agg_x.append(values[1])
-                    shift.append(values[2])  
+            try:
+                row,shift,agg_x = [],[],[]
+                for line in open(self.l1FitPath, 'r'):
+                        values = [float(s) for s in line.split()]
+                        row.append(values[0])
+                        agg_x.append(values[1])
+                        shift.append(values[2])  
+                        
+                row=np.array(row)
+                agg_x=np.array(agg_x)
+                row=row*agg_x[0]
+                shift=np.array(shift)
                     
-            row=np.array(row)
-            agg_x=np.array(agg_x)
-            row=row*agg_x[0]
-            shift=np.array(shift)
-                
-            fit = interpolate.interp1d(row,shift)
-                
-            self.wvlcalibrated = np.zeros((Data.shape[0],Data.shape[2]),dtype=np.int8)
-            self.wvlshiftdata = np.zeros((Data.shape[0],Data.shape[2]),dtype=np.float)
-            for i in range(Data.shape[0]):
-                if((i>=row[0]) and (i<=row[-1]) ):
-                    spec_shift = fit(i)
-                    self.wvlshiftdata[i,:] =  spec_shift
-                    self.wvlcalibrated[i,:] = 1
-                    self.wavelength[i,:] = self.wavelength[i,:] + spec_shift       
+                fit = interpolate.interp1d(row,shift)
+                    
+                self.wvlcalibrated = np.zeros((Data.shape[0],Data.shape[2]),dtype=np.int8)
+                self.wvlshiftdata = np.zeros((Data.shape[0],Data.shape[2]),dtype=np.float)
+                for i in range(Data.shape[0]):
+                    if((i>=row[0]) and (i<=row[-1]) ):
+                        spec_shift = fit(i)
+                        self.wvlshiftdata[i,:] =  spec_shift
+                        self.wvlcalibrated[i,:] = 1
+                        self.wavelength[i,:] = self.wavelength[i,:] + spec_shift       
+            except:
+                print('Not enough wavelength calibration data points to adjust wavelength variable')
+                pass
         else:
             pass
         
@@ -744,7 +749,8 @@ class MethaneAIR_L1(object):
                 self.logger.error('this should not happen!')
         return newGranule
     
-    def F_cut_granule(self,granule,granuleSeconds=10):
+    def F_cut_granule(self,granulefile,granuleSeconds=10):
+        import netCDF4 as nc4
         """
         cut a granule into a list of granules with shorter, regular-time intervals
         graule:
@@ -752,13 +758,25 @@ class MethaneAIR_L1(object):
         granuleSeconds:
             length of cut granule in s
         """
-        if hasattr(granule,'data'):
-            data = granule.data
-            noise = granule.noise
+        granule = nc4.Dataset(granulefile,'r')
+        wvl = granule.groups['Band1'].variables['Wavelength'][:,:,:]
+        data = granule.groups['Band1'].variables['Radiance'][:,:,:]
+        noise = granule.groups['Band1'].variables['RadianceUncertainty'][:,:,:]
+ 
+        wvl = wvl[:,:,::-1]
+        data = data[:,:,::-1]
+        noise = noise[:,:,::-1]
+
+        lon = granule.groups['Geolocation'].variables['Longitude'][:,:]
+        lat = granule.groups['Geolocation'].variables['Latitude'][:,:]
+        clon = granule.groups['Geolocation'].variables['CornerLongitude'][:,:,:]
+        clat = granule.groups['Geolocation'].variables['CornerLatitude'][:,:,:]
         #nFrame = granule.nFrame
-        frameTime = granule.frameTime
-        seqDateTime = granule.seqDateTime
-        frameDateTime = granule.frameDateTime
+        obshours = granule.groups['Geolocation'].variables['Time'][:]
+        frameDateTime = [] 
+        for i in range(len(obshours)):
+            frameDateTime.append(dt.datetime(1985,1,1,0,0,0) + dt.timedelta(hours=np.float64(obshours[i])))
+        frameDateTime = np.array(frameDateTime)
         minDateTime = np.min(frameDateTime)
         maxDateTime = np.max(frameDateTime)
         minSecond = (minDateTime-minDateTime.replace(hour=0,minute=0,second=0,microsecond=0)).total_seconds()
@@ -774,12 +792,9 @@ class MethaneAIR_L1(object):
         else:
             nGranule = np.floor(maxSecond/granuleSeconds)
             extratime = np.float(0.0) 
-        #endSecond = np.floor(maxSecond/granuleSeconds)*granuleSeconds
-        #maxSecond = round((endSecond%granuleSeconds),7)
 
         nGranule = np.int16(nGranule)
         secondList = np.arange(nGranule+1)*np.float(granuleSeconds)
-        #print('secondlist = ',secondList)
         granuleEdgeDateTimeList = np.array([startDateTime+dt.timedelta(seconds=secondList[i])+dt.timedelta(seconds=minSecond) for i in range(nGranule+1)])
         granuleEdgeDateTimeList[-1] = granuleEdgeDateTimeList[-1] + dt.timedelta(seconds=extratime)
         
@@ -789,38 +804,45 @@ class MethaneAIR_L1(object):
             for i in range(nGranule):
                     if(i<(nGranule-1)):
                         g0 = Granule()
-                        g0.seqDateTime = seqDateTime
                         f = (frameDateTime >= granuleEdgeDateTimeList[i]) &\
                         (frameDateTime < granuleEdgeDateTimeList[i+1])
                         g0.nFrame = np.int16(np.sum(f))
                         g0.frameDateTime = frameDateTime[f]
-                        g0.frameTime = frameTime[f]
-                        if hasattr(granule,'data'):
-                            g0.data = data[...,f]
-                            g0.noise = noise[...,f]
+                        g0.data = data[:,f,:]
+                        g0.wavelength = wvl[:,f,:]
+                        g0.noise = noise[:,f,:]
+                        g0.lon = lon[f,:]
+                        g0.lat = lat[f,:]
+                        g0.clon = clon[:,f,:]
+                        g0.clat = clat[:,f,:]
                         granuleList[i] = g0
                     elif(i==(nGranule-1)):
                         g0 = Granule()
-                        g0.seqDateTime = seqDateTime
                         f = (frameDateTime >= granuleEdgeDateTimeList[i]) &\
                         (frameDateTime <= granuleEdgeDateTimeList[i+1])
                         g0.nFrame = np.int16(np.sum(f))
                         g0.frameDateTime = frameDateTime[f]
-                        g0.frameTime = frameTime[f]
-                        if hasattr(granule,'data'):
-                            g0.data = data[...,f]
-                            g0.noise = noise[...,f]
+                        g0.data = data[:,f,:]
+                        g0.wavelength = wvl[:,f,:]
+                        g0.noise = noise[:,f,:]
+                        g0.lon = lon[f,:]
+                        g0.lat = lat[f,:]
+                        g0.clon = clon[:,f,:]
+                        g0.clat = clat[:,f,:]
                         granuleList[i] = g0
         elif(int(nGranule) == 0):
               granuleList = np.ndarray(shape=(nGranule+1),dtype=np.object_)
               g0 = Granule()
-              g0.seqDateTime = seqDateTime
               g0.frameDateTime = frameDateTime
-              g0.frameTime = frameTime
-              g0.nFrame = np.int16(len(frameTime))
-              if hasattr(granule,'data'):
-                  g0.data = data
-                  g0.noise = noise
+              g0.nFrame = np.int16(len(frameDateTime))
+              g0.frameDateTime = frameDateTime
+              g0.data = data
+              g0.wavelength = wvl
+              g0.noise = noise
+              g0.lon = lon
+              g0.lat = lat
+              g0.clon = clon
+              g0.clat = clat
               granuleList[0] = g0
 
         return granuleList
@@ -908,19 +930,6 @@ class MethaneAIR_L1(object):
                             'granuleMicrosecond':granuleMicrosecond})
             return
 
-        """ 
-        savemat(l1FilePath,{'wavelength':np.asfortranarray(wavelength),
-                            'radiance':np.asfortranarray(data),
-                            'radiance_error':np.asfortranarray(noise),
-                            'GEOS_5_tau':GEOS_5_tau,
-                            'granuleYear':granuleYear,
-                            'granuleMonth':granuleMonth,
-                            'granuleDay':granuleDay,
-                            'granuleHour':granuleHour,
-                            'granuleMinute':granuleMinute,
-                            'granuleSecond':granuleSecond,
-                            'granuleMicrosecond':granuleMicrosecond})
-        """
         f = nc4.Dataset(l1FilePath,'w', format='NETCDF4')
         
         f.createDimension('ncol', self.ncol)
@@ -952,6 +961,45 @@ class MethaneAIR_L1(object):
         second[:] = granuleSecond
         micro[:] = granuleMicrosecond
         f.close() 
+
+    def save_cut_avionics(self,timestamp,granule,headerStr='MethaneAIR_L1B_CH4_'):
+        import netCDF4 as nc4
+        cwd=os.getcwd()
+        l1FilePath = os.path.join(cwd,headerStr+timestamp+'.nc')
+
+        granule.data = granule.data.transpose([2,1,0])
+        granule.noise = granule.noise.transpose([2,1,0])
+        granule.wavelength = granule.wavelength.transpose([2,1,0])
+
+        GEOS_5_tau = np.array([(granule.frameDateTime[i]-dt.datetime(1985,1,1,0,0,0)).total_seconds()/3600.  for i in range(granule.nFrame)])
+
+        f = nc4.Dataset(l1FilePath,'w', format='NETCDF4')
+        
+        f.createDimension('ncol', self.ncol)
+        f.createDimension('nrow', self.nrow)
+        f.createDimension('nframe', granule.nFrame)
+        f.createDimension('ncorner', 4)
+          
+ 
+        wvl = f.createVariable('wavelength', 'f4', ( 'nrow', 'nframe', 'ncol'   )   )
+        rad = f.createVariable('radiance', 'f4', ( 'nrow', 'nframe', 'ncol'   )   )
+        raderr = f.createVariable('radiance_error', 'f4', ( 'nrow', 'nframe', 'ncol'   )   )
+        geos = f.createVariable('GEOS_5_tau', 'f8', 'nframe'   )
+        # These vars are only read by Ortho.
+        longitude = f.createVariable('Longitude', 'f4', ('nframe','nrow')   )
+        latitude =  f.createVariable('Latitude', 'f4', ('nframe','nrow')   )
+        cornerlongitude = f.createVariable('CornerLongitude', 'f4', ('ncorner','nframe','nrow')   )
+        cornerlatitude =  f.createVariable('CornerLatitude', 'f4', ('ncorner','nframe','nrow')   )
+
+        wvl[:,:,:] = granule.wavelength
+        rad[:,:,:] = granule.data 
+        raderr[:,:,:] = granule.noise
+        geos[:] = GEOS_5_tau 
+        longitude[:,:] = granule.lon 
+        latitude[:,:] =  granule.lat
+        cornerlongitude[:,:,:] = granule.clon
+        cornerlatitude[:,:,:] =  granule.clat
+        f.close()
         
     def F_save_L1B(self,granule,headerStr='MethaneAIR_L1B_CH4_'):
         """
@@ -961,7 +1009,7 @@ class MethaneAIR_L1(object):
         headerStr:
             'MethaneAIR_L1B_CH4_' or 'MethaneAIR_L1B_O2_' or 'MethaneAIR_L1B_' 
         """
-        from pysplat import level1
+        from pysplat import level1_AIR
         l1FilePath = os.path.join(self.l1DataDir,headerStr
                                   +np.min(granule.frameDateTime).strftime('%Y%m%dT%H%M%S')+'_'
                                   +np.max(granule.frameDateTime).strftime('%Y%m%dT%H%M%S')+'_'
@@ -977,7 +1025,7 @@ class MethaneAIR_L1(object):
             wavelength = wavelength[::-1,...]
             data = data[::-1,...]
             noise = noise[::-1,...]
-        l1 = level1(l1FilePath,
+        l1 = level1_AIR(l1FilePath,
                     lon=np.zeros((self.nrow,granule.nFrame)),
                     lat=np.zeros((self.nrow,granule.nFrame)),
                     obsalt=np.zeros(granule.nFrame),
@@ -1014,6 +1062,88 @@ class MethaneAIR_L1(object):
                         output[keys[n]].append(row[n])
         return output
         
+    def read_ortho_akaze(self,geodir,timestamp):
+        band = self.whichBand
+        filename=os.path.join(geodir,'MethaneAIR_L1B_'+band+'_'+timestamp+'.nc')
+        data = Dataset(filename,'r')
+
+        akaze_zsurf = data['SurfaceAltitudeRegistered'][:,:] * 1e-3
+
+        akaze_lat = data['LatitudeRegistered'][:,:]
+        akaze_lon = data['LongitudeRegistered'][:,:]
+
+        akaze_lat_ll = data['CornerLatitudeRegistered'][0,:,:]
+        akaze_lat_ul = data['CornerLatitudeRegistered'][2,:,:]
+        akaze_lat_ur = data['CornerLatitudeRegistered'][3,:,:]
+        akaze_lat_lr = data['CornerLatitudeRegistered'][1,:,:]
+
+        akaze_lon_ll = data['CornerLongitudeRegistered'][0,:,:]
+        akaze_lon_ul = data['CornerLongitudeRegistered'][2,:,:]
+        akaze_lon_ur = data['CornerLongitudeRegistered'][3,:,:]
+        akaze_lon_lr = data['CornerLongitudeRegistered'][1,:,:]
+
+        akaze_clon = np.zeros(( akaze_lat.shape[0], akaze_lat.shape[1],4 ))
+        akaze_clat = np.zeros(( akaze_lat.shape[0], akaze_lat.shape[1],4 ))
+         
+        akaze_clon[:,:,0] = akaze_lon_ll
+        akaze_clon[:,:,1] = akaze_lon_ul
+        akaze_clon[:,:,2] = akaze_lon_ur
+        akaze_clon[:,:,3] = akaze_lon_lr
+
+        akaze_clat[:,:,0] = akaze_lat_ll
+        akaze_clat[:,:,1] = akaze_lat_ul
+        akaze_clat[:,:,2] = akaze_lat_ur
+        akaze_clat[:,:,3] = akaze_lat_lr
+
+        akaze_lon_ll=None
+        akaze_lon_ul=None
+        akaze_lon_ur=None
+        akaze_lon_lr=None
+        akaze_lat_ll=None
+        akaze_lat_ul=None
+        akaze_lat_ur=None
+        akaze_lat_lr=None
+
+        Distance_Registered_Reprojected = data['DistanceRegisteredReprojected'][:,:]
+        Optimization_Convergence_Fail = data['OptimizationConvergenceFail'][:]
+        Reprojection_Fit_Flag = data['ReprojectionFitFlag'][:]
+
+        heading = data['AircraftHeading'][:]
+        roll    = data['AircraftRoll'][:]
+        pitch   = data['AircraftPitch'][:]
+
+        return (roll,pitch,heading,akaze_zsurf,akaze_lat,akaze_lon,akaze_clon,akaze_clat,Distance_Registered_Reprojected,Optimization_Convergence_Fail,Reprojection_Fit_Flag)
+
+    def read_avionics(self,geodir):
+        band = self.whichBand
+        data = nc4.Dataset(geodir,'r').groups['Geolocation']
+        
+        zsurf = data['SurfaceAltitude'][self.nframe0:self.nframe1,:] 
+           
+        lat = data['Latitude'][self.nframe0:self.nframe1,:]
+
+        lon = data['Longitude'][self.nframe0:self.nframe1,:]
+
+        clat = data['CornerLatitude'][:,self.nframe0:self.nframe1,:]
+        clon = data['CornerLongitude'][:,self.nframe0:self.nframe1,:]
+
+        ac_lon = data['AircraftLongitude'][self.nframe0:self.nframe1]
+        ac_lat = data['AircraftLatitude'][self.nframe0:self.nframe1]
+        ac_bore = data['AircraftPixelBore'][:,self.nframe0:self.nframe1,:]
+        ac_altwgs84 = data['ObservationAltitude'][self.nframe0:self.nframe1] 
+        ac_altsurf = data['AircraftAltitudeAboveSurface'][self.nframe0:self.nframe1]
+        ac_pos = data['AircraftPos'][:,self.nframe0:self.nframe1]
+        ac_surfalt = data['AircraftSurfaceAltitude'][self.nframe0:self.nframe1] 
+
+        saa = data['SolarAzimuthAngle'][self.nframe0:self.nframe1,:]
+        sza = data['SolarZenithAngle'][self.nframe0:self.nframe1,:]
+        vaa = data['ViewingAzimuthAngle'][self.nframe0:self.nframe1,:]
+        vza = data['ViewingZenithAngle'][self.nframe0:self.nframe1,:]
+        aza = data['RelativeAzimuthAngle'][self.nframe0:self.nframe1,:]
+
+        return (clon,clat,lon,lat,zsurf,sza,vza,aza,saa,vaa,ac_lon,ac_lat,ac_bore,ac_altwgs84,ac_altsurf,ac_pos,ac_surfalt)
+
+
 
     def read_geolocation(self,geodir,timestamp,readviewgeo=True):
 
@@ -1062,13 +1192,13 @@ class MethaneAIR_L1(object):
             lat_lr=None
 
 
-            ac_lon = data['Aircraft_Longitude'][:]
-            ac_lat = data['Aircraft_Latitude'][:]
-            ac_bore = data['Aircraft_PixelBore'][:,:,::-1]
-            ac_altwgs84 = data['Aircraft_AltitudeAboveWGS84'][:] * 1e-3
-            ac_altsurf = data['Aircraft_AltitudeAboveSurface'][:] * 1e-3
-            ac_pos = data['Aircraft_Pos'][::-1,:]
-            ac_surfalt = data['Aircraft_SurfaceAltitude'][:] * 1e-3
+            ac_lon = data['AircraftLongitude'][:]
+            ac_lat = data['AircraftLatitude'][:]
+            ac_bore = data['AircraftPixelBore'][:,:,::-1]
+            ac_altwgs84 = data['AircraftAltitudeAboveWGS84'][:] * 1e-3
+            ac_altsurf = data['AircraftAltitudeAboveSurface'][:] * 1e-3
+            ac_pos = data['AircraftPos'][::-1,:]
+            ac_surfalt = data['AircraftSurfaceAltitude'][:] * 1e-3
 
 
             if(readviewgeo):
@@ -1087,6 +1217,7 @@ class MethaneAIR_L1(object):
             else:
                 return clon,clat,lon,lat,zsurf
         else:
+
             zsurf = data['SurfaceAltitude'][:,:] * 1e-3
                
             lat = data['Latitude'][:,:]
@@ -1125,13 +1256,13 @@ class MethaneAIR_L1(object):
             lat_ur=None
             lat_lr=None
 
-            ac_lon = data['Aircraft_Longitude'][:]
-            ac_lat = data['Aircraft_Latitude'][:]
-            ac_bore = data['Aircraft_PixelBore'][:,:,:]
-            ac_altwgs84 = data['Aircraft_AltitudeAboveWGS84'][:] * 1e-3
-            ac_altsurf = data['Aircraft_AltitudeAboveSurface'][:] * 1e-3
-            ac_pos = data['Aircraft_Pos'][:,:]
-            ac_surfalt = data['Aircraft_SurfaceAltitude'][:] * 1e-3
+            ac_lon = data['AircraftLongitude'][:]
+            ac_lat = data['AircraftLatitude'][:]
+            ac_bore = data['AircraftPixelBore'][:,:,:]
+            ac_altwgs84 = data['AircraftAltitudeAboveWGS84'][:] * 1e-3
+            ac_altsurf = data['AircraftAltitudeAboveSurface'][:] * 1e-3
+            ac_pos = data['AircraftPos'][:,:]
+            ac_surfalt = data['AircraftSurfaceAltitude'][:] * 1e-3
 
 
             if(readviewgeo):
@@ -1232,9 +1363,57 @@ class MethaneAIR_L1(object):
             return lon,lat,zsurf
         """
 
+    def read_akaze_data(self,geodir):
+        band = self.whichBand
+        filename=os.path.join(geodir,'MethaneAIR_L1B_'+band+'_'+timestamp+'.nc')
+        data = Dataset(filename,'r')
+
+        akaze_zsurf = data['SurfaceAltitudeRegistered'][:,:] * 1e-3
+           
+        akaze_lat = data['LatitudeRegistered'][:,:]
+
+        akaze_lon = data['LongitudeRegistered'][:,:]
+
+        akaze_lat_ll = data['CornerLatitudeRegistered'][0,:,:]
+        akaze_lat_ul = data['CornerLatitudeRegistered'][2,:,:]
+        akaze_lat_ur = data['CornerLatitudeRegistered'][3,:,:]
+        akaze_lat_lr = data['CornerLatitudeRegistered'][1,:,:]
+
+        akaze_lon_ll = data['CornerLongitudeRegistered'][0,:,:]
+        akaze_lon_ul = data['CornerLongitudeRegistered'][2,:,:]
+        akaze_lon_ur = data['CornerLongitudeRegistered'][3,:,:]
+        akaze_lon_lr = data['CornerLongitudeRegistered'][1,:,:]
+
+        akaze_clon = np.zeros(( akaze_lat.shape[0], akaze_lat.shape[1],4 ))
+        akaze_clat = np.zeros(( akaze_lat.shape[0], akaze_lat.shape[1],4 ))
+         
+        akaze_clon[:,:,0] = akaze_lon_ll
+        akaze_clon[:,:,1] = akaze_lon_ul
+        akaze_clon[:,:,2] = akaze_lon_ur
+        akaze_clon[:,:,3] = akaze_lon_lr
+
+        akaze_clat[:,:,0] = akaze_lat_ll
+        akaze_clat[:,:,1] = akaze_lat_ul
+        akaze_clat[:,:,2] = akaze_lat_ur
+        akaze_clat[:,:,3] = akaze_lat_lr
+
+        akaze_lon_ll=None
+        akaze_lon_ul=None
+        akaze_lon_ur=None
+        akaze_lon_lr=None
+        akaze_lat_ll=None
+        akaze_lat_ul=None
+        akaze_lat_ur=None
+        akaze_lat_lr=None
+
+        Distance_Registered_Reprojected = data['DistanceRegisteredReprojected'][:,:] 
+        Optimization_Convergence_Fail = data['OptimizationConvergenceFail'][:] 
+        Reprojection_Fit_Flag = data['ReprojectionFitFlag'] 
+
+        return akaze_clon,akaze_clat,akaze_zsurf,akaze_lat,akaze_lon,Distance_Registered_Reprojected,Optimization_Convergence_Fail,Reprojection_Fit_Flag 
 
             
-    def write_splat_l1_coadd(self,l1_rad_dir,l1_geodir,time_stamp,l1_outdir,xtrk_aggfac=1,atrk_aggfac=1,wvl_file=None,ortho_step='avionics'):
+    def write_splat_l1_coadd(self,l1_rad_dir,l1_geodir,time_stamp,l1_outdir,xtrk_aggfac=1,atrk_aggfac=1,wvl_file=None,ortho_step='avionics',nframe0=None,nframe1=None,avfile=None,av_only=True):
 
         ''' Create splat level1 file and corresponding ISRF LUT
 
@@ -1268,6 +1447,8 @@ class MethaneAIR_L1(object):
         else:
             headerStr='MethaneAIR_L1B_O2_'
 
+        self.nframe0 = nframe0
+        self.nframe1 = nframe1
             
         
         # Load the matlab file
@@ -1283,16 +1464,7 @@ class MethaneAIR_L1(object):
         tmx = l1data['radiance'].shape[1]
         
         # Compute tau time from input data
-        tau_native = np.zeros(tmx)
-        for t in range(tmx):
-            nymd = l1data['granuleYear'][t]*10000 \
-                 + l1data['granuleMonth'][t]*100  \
-                 + l1data['granuleDay'][t]
-            tau_native[t] = pysplat.time.nymd2tau(nymd)[0]        \
-                          + float(l1data['granuleHour'][t])        \
-                          + float(l1data['granuleMinute'][t])/60.0 \
-                          + float(l1data['granuleSecond'][t])/3600.0 \
-                          + float(l1data['granuleMicrosecond'][t]/(3600e6))        
+        tau_native = l1data['GEOS_5_tau'][:]
         # Block pads with zeros and therefore does not correctly normalize - do this here
         norm_3d = block_reduce(np.ones(l1data['radiance'].shape),        \
                                block_size=(xtrk_aggfac, atrk_aggfac, 1),\
@@ -1359,28 +1531,6 @@ class MethaneAIR_L1(object):
         # Wavelength grid
         wvl = np.zeros((nx,nt,wmx))
 
-        """
-        # Check if we need to add a shift
-        if(not wvl_file is None):
-
-            # Load file
-            d = Dataset(wvl_file,'r')
-            wvl_1x1 = d.variables['wvl'][:] # (x,w)
-            d.close()
-            
-            # Degrade file to cross track
-            norm_2d = block_reduce(np.ones(wvl_1x1.shape),block_size=(xtrk_aggfac,1),func=np.mean)
-            wvl_ccd  = block_reduce(wvl_1x1,block_size=(xtrk_aggfac,1),func=np.mean)
-            wvl_ccd = wvl_ccd / norm_2d
-            
-            # Add shift
-            for x in range(nx):
-                for t in range(nt):
-                    wvl[x,t,:] = wvl_ccd[x,:].squeeze()
-            
-        else:
-        """
-
         wvl = l1data['wavelength']
         norm_3d = block_reduce(np.ones(wvl.shape),        \
                                block_size=(xtrk_aggfac, atrk_aggfac, 1),\
@@ -1390,22 +1540,103 @@ class MethaneAIR_L1(object):
                            func=np.mean                             )#.transpose((0,2,1))
         wvl = wvl / norm_3d
         
-
+        wvl = wvl[::-1,:,:]
 
 
         rad = np.transpose(rad,(0,2,1))
         rad_err = np.transpose(rad_err,(0,2,1))
 
-
-
-
         # Get pixel geolocation on aggregated grid
-        corner_lon_native,corner_lat_native,lon_native,lat_native,zsurf_native,sza,vza,aza,saa,vaa,ac_lon,ac_lat,ac_bore,ac_altwgs84,ac_altsurf,ac_pos,ac_surfalt = self.read_geolocation(l1_geodir,time_stamp,readviewgeo=True)
-
-        ####################3
-        
+        if((avfile!=None) and (av_only == False) ):
+            corner_lon_native,corner_lat_native,lon_native,lat_native,zsurf_native,sza,vza,aza,saa,vaa,ac_lon,ac_lat,ac_bore,ac_altwgs84,ac_altsurf,ac_pos,ac_surfalt = self.read_geolocation(l1_geodir,time_stamp,readviewgeo=True)
+        elif((avfile!=None) and (av_only == True)):
+            corner_lon_native,corner_lat_native,lon_native,lat_native,zsurf_native,sza,vza,aza,saa,vaa,ac_lon,ac_lat,ac_bore,ac_altwgs84,ac_altsurf,ac_pos,ac_surfalt = self.read_avionics(avfile)
+            corner_lon_native = corner_lon_native.transpose((1,2,0))
+            corner_lat_native = corner_lat_native.transpose((1,2,0))
+        else:
+            corner_lon_native,corner_lat_native,lon_native,lat_native,zsurf_native,sza,vza,aza,saa,vaa,ac_lon,ac_lat,ac_bore,ac_altwgs84,ac_altsurf,ac_pos,ac_surfalt = self.read_geolocation(l1_geodir,time_stamp,readviewgeo=True)
         # Time
         norm_1d = block_reduce(np.ones(tau_native.shape),block_size=(atrk_aggfac,),func=np.mean)
+
+        # get the avionincs only data from avfile
+        if((avfile!=None) and (av_only == False)):
+            df = nc4.Dataset(avfile,'r').groups['Geolocation'] 
+
+            """
+            av_ac_lon = df.variables['AircraftLongitude'][:] 
+            av_ac_lat = df.variables['AircraftLatitude'][:] 
+            av_ac_altwgs84 = df.variables['ObservationAltitude'][:] 
+            av_ac_altsurf = df.variables['AircraftAltitudeAboveSurface'][:] 
+            av_ac_surfalt = df.variables['AircraftSurfaceAltitude'][:] 
+
+            av_ac_pos = df.variables['AircraftPos'][:,:]
+            av_zsurf = df.variables['SurfaceAltitude'][:,:] 
+            av_lon = df.variables['Longitude'][:,:]
+            av_lat = df.variables['Latitude'][:,:]
+            av_sza = df.variables['SolarZenithAngle'][:,:]
+            av_saa = df.variables['SolarAzimuthAngle'][:,:]
+            av_vaa = df.variables['ViewingAzimuthAngle'][:,:]
+            av_vza = df.variables['ViewingZenithAngle'][:,:]
+            av_aza = df.variables['RelativeAzimuthAngle'][:,:]
+            av_corner_lon = df.variables['CornerLongitude'][:,:,:]
+            av_corner_lat = df.variables['CornerLatitude'][:,:,:]
+            av_ac_bore = df.variables['AircraftPixelBore'][:,:,:]
+            """
+
+            av_corner_lon,av_corner_lat,av_lon,av_lat,av_zsurf,av_sza,av_vza,av_aza,av_saa,av_vaa,av_ac_lon,av_ac_lat,av_ac_bore,av_ac_altwgs84,av_ac_altsurf,av_ac_pos,av_ac_surfalt = self.read_avionics(avfile)
+
+            av_ac_lon = av_ac_lon.T
+            av_ac_lat = av_ac_lat.T
+            av_ac_pos =av_ac_pos.T
+            av_zsurf = av_zsurf.T
+            av_lon = av_lon.T
+            av_lat = av_lat.T
+            av_sza = av_sza.T
+            av_saa = av_saa.T
+            av_vaa = av_vaa.T
+            av_vza = av_vza.T
+            av_aza = av_aza.T
+            av_corner_lon = av_corner_lon.T
+            av_corner_lat = av_corner_lat.T
+            av_ac_bore = av_ac_bore.T
+
+            av_ac_lon = block_reduce(av_ac_lon,block_size=(atrk_aggfac,),func=np.mean) ; av_ac_lon = av_ac_lon / norm_1d
+            av_ac_lat = block_reduce(av_ac_lat,block_size=(atrk_aggfac,),func=np.mean) ; av_ac_lat = av_ac_lat / norm_1d
+            av_ac_altwgs84 = block_reduce(av_ac_altwgs84,block_size=(atrk_aggfac,),func=np.mean) ; av_ac_altwgs84 = av_ac_altwgs84 / norm_1d
+            av_ac_altsurf = block_reduce(av_ac_altsurf,block_size=(atrk_aggfac,),func=np.mean) ; av_ac_altsurf = av_ac_altsurf / norm_1d
+            av_ac_surfalt = block_reduce(av_ac_surfalt,block_size=(atrk_aggfac,),func=np.mean) ; av_ac_surfalt = av_ac_surfalt / norm_1d
+            #------#    
+            norm_2d = block_reduce(np.ones(av_ac_pos.shape),block_size=(atrk_aggfac,1),func=np.mean)
+            av_ac_pos = block_reduce(av_ac_pos,block_size=(xtrk_aggfac,atrk_aggfac),func=np.mean) ; av_ac_pos = av_ac_pos/norm_2d
+            #------#    
+            norm_2d = block_reduce(np.ones(av_lon.shape),block_size=(xtrk_aggfac,atrk_aggfac),func=np.mean)
+            av_zsurf = block_reduce(av_zsurf,block_size=(xtrk_aggfac,atrk_aggfac),func=np.mean) ; av_zsurf = av_zsurf/norm_2d
+            av_lon = block_reduce(av_lon,block_size=(xtrk_aggfac,atrk_aggfac),func=np.mean) ; av_lon = av_lon/norm_2d
+            av_lat = block_reduce(av_lat,block_size=(xtrk_aggfac,atrk_aggfac),func=np.mean) ; av_lat = av_lat/norm_2d
+            av_sza = block_reduce(av_sza,block_size=(xtrk_aggfac,atrk_aggfac),func=np.mean) ; av_sza = av_sza/norm_2d
+            av_saa = block_reduce(av_saa,block_size=(xtrk_aggfac,atrk_aggfac),func=np.mean) ; av_saa = av_saa/norm_2d
+            av_vaa = block_reduce(av_vaa,block_size=(xtrk_aggfac,atrk_aggfac),func=np.mean) ; av_vaa = av_vaa/norm_2d
+            av_vza = block_reduce(av_vza,block_size=(xtrk_aggfac,atrk_aggfac),func=np.mean) ; av_vza = av_vza/norm_2d
+            av_aza = block_reduce(av_aza,block_size=(xtrk_aggfac,atrk_aggfac),func=np.mean) ; av_aza = av_aza/norm_2d
+            #------#    
+            norm_3d = block_reduce(np.ones(av_corner_lon.shape),  block_size=(xtrk_aggfac, atrk_aggfac, 1),func=np.mean)
+            av_corner_lon = block_reduce(av_corner_lon,block_size=(xtrk_aggfac,atrk_aggfac,1),func=np.mean) ; av_corner_lon = av_corner_lon/norm_3d
+            av_corner_lat = block_reduce(av_corner_lat,block_size=(xtrk_aggfac,atrk_aggfac,1),func=np.mean) ; av_corner_lat = av_corner_lat/norm_3d
+            norm_3d = block_reduce(np.ones(av_ac_bore.shape),  block_size=(xtrk_aggfac, atrk_aggfac, 1),func=np.mean)
+            av_ac_bore = block_reduce(av_ac_bore,block_size=(xtrk_aggfac,atrk_aggfac,1),func=np.mean) ; av_ac_bore = av_ac_bore/norm_3d
+
+        #Akaze Lon/Lat Values
+        if((avfile!=None) and (av_only == False)):
+            akaze_msi= Dataset(avfile,'r').groups['SupportingData'].variables['Reference_IMG'][nframe0:nframe1,:]
+            roll,pitch,heading,akaze_zsurf,akaze_lat,akaze_lon,akaze_clon,akaze_clat,Distance_Registered_Reprojected,Optimization_Convergence_Fail,Reprojection_Fit_Flag = self.read_ortho_akaze(l1_geodir,time_stamp)
+        else:
+            akaze_msi = None
+
+        if((avfile!=None) and (av_only == False)):
+           roll    = block_reduce(roll,block_size=(atrk_aggfac,),func=np.mean) ; roll = roll / norm_1d
+           pitch   = block_reduce(pitch,block_size=(atrk_aggfac,),func=np.mean) ; pitch = pitch / norm_1d
+           heading = block_reduce(heading,block_size=(atrk_aggfac,),func=np.mean) ; heading = heading / norm_1d
+
         tau = block_reduce(tau_native,block_size=(atrk_aggfac,),func=np.mean)
         tau = tau / norm_1d
 
@@ -1435,10 +1666,16 @@ class MethaneAIR_L1(object):
         norm_2d = block_reduce(np.ones(lon_native.shape),block_size=(xtrk_aggfac,atrk_aggfac),func=np.mean)
 
         zsurf = block_reduce(zsurf_native,block_size=(xtrk_aggfac,atrk_aggfac),func=np.mean) ; zsurf = zsurf/norm_2d
-
+        if((avfile!=None) and (av_only == False)):
+            akaze_zsurf = block_reduce(akaze_zsurf,block_size=(xtrk_aggfac,atrk_aggfac),func=np.mean) ; akaze_zsurf = akaze_zsurf/norm_2d
+            akaze_lon = block_reduce(akaze_lon,block_size=(xtrk_aggfac,atrk_aggfac),func=np.mean) ; akaze_lon = akaze_lon/norm_2d
+            akaze_lat = block_reduce(akaze_lat,block_size=(xtrk_aggfac,atrk_aggfac),func=np.mean) ; akaze_lat = akaze_lat/norm_2d
+            Distance_Registered_Reprojected = block_reduce(Distance_Registered_Reprojected,block_size=(xtrk_aggfac,atrk_aggfac),func=np.mean) ; Distance_Registered_Reprojected = Distance_Registered_Reprojected/norm_2d
         lon = block_reduce(lon_native,block_size=(xtrk_aggfac,atrk_aggfac),func=np.mean) ; lon = lon/norm_2d
         lat = block_reduce(lat_native,block_size=(xtrk_aggfac,atrk_aggfac),func=np.mean) ; lat = lat/norm_2d
-
+        if((avfile!=None) and (av_only == False)):
+            akaze_msi = block_reduce(akaze_msi,block_size=(xtrk_aggfac,atrk_aggfac),func=np.mean) ; akaze_msi = akaze_msi/norm_2d
+            akaze_msi = akaze_msi.transpose(1,0)
 
         sza = block_reduce(sza,block_size=(xtrk_aggfac,atrk_aggfac),func=np.mean) ; sza = sza/norm_2d
         saa = block_reduce(saa,block_size=(xtrk_aggfac,atrk_aggfac),func=np.mean) ; saa = saa/norm_2d
@@ -1451,6 +1688,9 @@ class MethaneAIR_L1(object):
         norm_3d = block_reduce(np.ones(corner_lon_native.shape),  block_size=(xtrk_aggfac, atrk_aggfac, 1),func=np.mean)
         corner_lon = block_reduce(corner_lon_native,block_size=(xtrk_aggfac,atrk_aggfac,1),func=np.mean) ; corner_lon = corner_lon/norm_3d
         corner_lat = block_reduce(corner_lat_native,block_size=(xtrk_aggfac,atrk_aggfac,1),func=np.mean) ; corner_lat = corner_lat/norm_3d
+        if((avfile!=None) and (av_only == False)):
+            akaze_clon = block_reduce(akaze_clon,block_size=(xtrk_aggfac,atrk_aggfac,1),func=np.mean) ; akaze_clon = akaze_clon/norm_3d
+            akaze_clat = block_reduce(akaze_clat,block_size=(xtrk_aggfac,atrk_aggfac,1),func=np.mean) ; akaze_clat = akaze_clat/norm_3d
 
         ####################3
         ac_bore = ac_bore.transpose((2,1,0))
@@ -1460,7 +1700,6 @@ class MethaneAIR_L1(object):
         # Get flight location
         #obslon,obslat,obsalt = self.get_flight_location(l1_flight_file,tau)
         # Create the level1 Object
-
         lon = lon.transpose(1,0)
         lat = lat.transpose(1,0)
         corner_lat = corner_lat.transpose(1,0,2)
@@ -1474,14 +1713,132 @@ class MethaneAIR_L1(object):
         ac_pos = ac_pos.transpose(1,0)
 
 
-        l1 = pysplat.level1(l1_outfile,lon,lat,ac_altwgs84,tau,ac_lon,ac_lat,ac_pos,ac_surfalt,ac_altsurf,ac_bore,optbenchT=None,clon=corner_lon,clat=corner_lat)
-        # Set the surface altitude
-        l1.set_2d_geofield('SurfaceAltitude', zsurf)
-        l1.set_2d_geofield('SolarZenithAngle', sza)
-        l1.set_2d_geofield('SolarAzimuthAngle', saa)
-        l1.set_2d_geofield('ViewingZenithAngle', vza)
-        l1.set_2d_geofield('ViewingAzimuthAngle', vaa)
-        l1.set_2d_geofield('RelativeAzimuthAngle', aza)
+        #print(ac_bore.shape)
+        #print(ac_altwgs84.shape)
+        #print(ac_surfalt.shape)
+        #print(ac_altsurf.shape)
+        #print(lon.shape)
+        #print(lat.shape)
+        #print(corner_lat.shape)
+        #print(corner_lon.shape)
+        #print(sza.shape)
+        #print(saa.shape)
+        #print(vaa.shape)
+        #print(vza.shape)
+        #print(aza.shape)
+        #print(zsurf.shape)
+        #print(ac_pos.shape)
+
+        if((avfile!=None) and (av_only == False)):
+            # Set the best data into main
+            akaze_lon = akaze_lon.transpose(1,0)
+            akaze_lat = akaze_lat.transpose(1,0)
+            akaze_clat = akaze_clat.transpose(1,0,2)
+            akaze_clon = akaze_clon.transpose(1,0,2)
+            akaze_zsurf = akaze_zsurf.transpose(1,0)
+            Distance_Registered_Reprojected = Distance_Registered_Reprojected.transpose(1,0)
+
+            if((Optimization_Convergence_Fail == 1) or (Reprojection_Fit_Flag == 1)):
+                # We should use Akaze in the main and optimized in the secondary
+                # av_flag    = 0
+                # akz_flag   = 1
+                # ortho_flag = 0
+                l1 = pysplat.level1_AIR(l1_outfile,akaze_lon,akaze_lat,av_ac_altwgs84,tau,av_ac_lon,av_ac_lat,av_ac_pos,av_ac_surfalt,av_ac_altsurf,av_ac_bore,optbenchT=None,clon=akaze_clon,clat=akaze_clat,akaze_msi_image = akaze_msi)
+                # Set the surface altitude
+                l1.set_2d_geofield('SurfaceAltitude', akaze_zsurf)
+                l1.set_2d_geofield('SolarZenithAngle', av_sza)
+                l1.set_2d_geofield('SolarAzimuthAngle', av_saa)
+                l1.set_2d_geofield('ViewingZenithAngle', av_vza)
+                l1.set_2d_geofield('ViewingAzimuthAngle', av_vaa)
+                l1.set_2d_geofield('RelativeAzimuthAngle', av_aza)
+
+                # Add extra Support Variables
+                l1.set_supportfield('OptimizedSolarZenithAngle', sza)
+                l1.set_supportfield('OptimizedSolarAzimuthAngle', saa)
+                l1.set_supportfield('OptimizedViewingZenithAngle', vza)
+                l1.set_supportfield('OptimizedViewingAzimuthAngle', vaa)
+                l1.set_supportfield('OptimizedRelativeAzimuthAngle', aza)
+                l1.set_supportfield('OptimizedSurfaceAltitude',zsurf)
+                l1.set_supportfield('OptimizedAircraftLongitude',ac_lon)
+                l1.set_supportfield('OptimizedAircraftLatitude',ac_lat)
+                l1.set_supportfield('OptimizedAircraftAltitudeAboveSurface',ac_altsurf)
+                l1.set_supportfield('OptimizedAircraftSurfaceAltitude',ac_surfalt)
+                l1.set_supportfield('OptimizedAircraftPixelBore',ac_bore)
+                l1.set_supportfield('OptimizedAircraftPos',ac_pos)
+                l1.set_supportfield('OptimizedLongitude',lon)
+                l1.set_supportfield('OptimizedLatitude',lat)
+                l1.set_supportfield('OptimizedCornerLongitude',corner_lon)
+                l1.set_supportfield('OptimizedCornerLatitude',corner_lat)
+                l1.set_supportfield('OptimizedObservationAltitude',ac_altwgs84)
+
+                l1.set_supportfield('AvionicsLongitude',av_lon)
+                l1.set_supportfield('AvionicsLatitude',av_lat)
+                l1.set_supportfield('AvionicsCornerLongitude',av_corner_lon)
+                l1.set_supportfield('AvionicsCornerLatitude',av_corner_lat)
+                l1.set_supportfield('AvionicsSurfaceAltitude',av_zsurf)
+
+                l1.set_1d_flag(None,True,True)
+
+                # Add some extra features
+                l1.add_akaze(roll,pitch,heading,Distance_Registered_Reprojected,Optimization_Convergence_Fail,Reprojection_Fit_Flag)
+            else:
+                # We should use Optimized in the main and Akaze in the secondary
+                # av_flag    = 0
+                # akz_flag   = 0
+                # ortho_flag = 1
+                l1 = pysplat.level1_AIR(l1_outfile,lon,lat,ac_altwgs84,tau,ac_lon,ac_lat,ac_pos,ac_surfalt,ac_altsurf,ac_bore,optbenchT=None,clon=corner_lon,clat=corner_lat,akaze_msi_image = akaze_msi)
+                # Set the surface altitude
+                l1.set_2d_geofield('SurfaceAltitude', zsurf)
+                l1.set_2d_geofield('SolarZenithAngle', sza)
+                l1.set_2d_geofield('SolarAzimuthAngle', saa)
+                l1.set_2d_geofield('ViewingZenithAngle', vza)
+                l1.set_2d_geofield('ViewingAzimuthAngle', vaa)
+                l1.set_2d_geofield('RelativeAzimuthAngle', aza)
+
+                # Add extra Support Variables
+                l1.set_supportfield('AkazeLongitude',akaze_lon)
+                l1.set_supportfield('AkazeLatitude',akaze_lat)
+                l1.set_supportfield('AkazeSurfaceAltitude',akaze_zsurf)
+                l1.set_supportfield('AkazeCornerLatitude',akaze_clat)
+                l1.set_supportfield('AkazeCornerLongitude',akaze_clon)
+
+                l1.set_supportfield('AvionicsSurfaceAltitude',av_zsurf)
+                l1.set_supportfield('AvionicsSolarZenithAngle',av_sza)
+                l1.set_supportfield('AvionicsSolarAzimuthAngle',av_saa)
+                l1.set_supportfield('AvionicsViewingZenithAngle',av_vza)
+                l1.set_supportfield('AvionicsViewingAzimuthAngle',av_vaa)
+                l1.set_supportfield('AvionicsRelativeAzimuthAngle',av_aza)
+                l1.set_supportfield('AvionicsAircraftLongitude',av_ac_lon)
+                l1.set_supportfield('AvionicsAircraftLatitude',av_ac_lat)
+                l1.set_supportfield('AvionicsAircraftAltitudeAboveSurface',av_ac_altsurf)
+                l1.set_supportfield('AvionicsAircraftSurfaceAltitude',av_ac_surfalt)
+                l1.set_supportfield('AvionicsAircraftPixelBore',av_ac_bore)
+                l1.set_supportfield('AvionicsAircraftPos',av_ac_pos)
+                l1.set_supportfield('AvionicsLongitude',av_lon)
+                l1.set_supportfield('AvionicsLatitude',av_lat)
+                l1.set_supportfield('AvionicsCornerLongitude',av_corner_lon)
+                l1.set_supportfield('AvionicsCornerLatitude',av_corner_lat)
+                l1.set_supportfield('AvionicsObservationAltitude',av_ac_altwgs84)
+
+                l1.set_1d_flag(True,None,None)
+
+                # Add some extra features
+                l1.add_akaze(roll,pitch,heading,Distance_Registered_Reprojected,Optimization_Convergence_Fail,Reprojection_Fit_Flag)
+        else:
+            # Just Avionics Data Added.
+            # av_flag    = 1
+            # akz_flag   = 0
+            # ortho_flag = 0
+            l1 = pysplat.level1_AIR(l1_outfile,lon,lat,ac_altwgs84,tau,ac_lon,ac_lat,ac_pos,ac_surfalt,ac_altsurf,ac_bore,optbenchT=None,clon=corner_lon,clat=corner_lat,akaze_msi_image = akaze_msi)
+            # Set the surface altitude
+            l1.set_2d_geofield('SurfaceAltitude', zsurf)
+            l1.set_2d_geofield('SolarZenithAngle', sza)
+            l1.set_2d_geofield('SolarAzimuthAngle', saa)
+            l1.set_2d_geofield('ViewingZenithAngle', vza)
+            l1.set_2d_geofield('ViewingAzimuthAngle', vaa)
+            l1.set_2d_geofield('RelativeAzimuthAngle', aza)
+
+            l1.set_1d_flag(None,None,True)
 
         # Write the band
         l1.add_radiance_band(wvl,rad,rad_err=rad_err,rad_flag=rad_flags)
@@ -1489,7 +1846,7 @@ class MethaneAIR_L1(object):
         # Close file
         l1.close()
         
-        return rad
+        return 
         
     
     def load_caldata(self,indir='caldata',band='CH4'):

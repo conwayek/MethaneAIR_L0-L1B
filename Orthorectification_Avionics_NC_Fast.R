@@ -4,18 +4,17 @@ Orthorectification_Avionics_NC <- function(
   # Customize Inputs-----------------------------------------------------------
 
   # Netcdf flight data file
-  #file_flightnc = '../../Inputs/MethaneAIRrf01_hrt.nc',
-  file_flightnc = '../../Inputs/MethaneAIRrf02_hrt.nc',
+  file_flightnc = '/n/holylfs04/LABS/wofsy_lab/Lab/econway/DATA/MethaneAIR21rf05s.nc',
 
   # Digital Elevation Map created using DEM_elevatr.R
-  file_dem = "../../Inputs/dem.rds",
+  file_dem = "/n/holyscratch01/wofsy_lab/econway/RF05/O2_NATIVE/100/dem.tiff",
 
   # Level 1 file. Must be a NetCDF 
-  #file_L1 = "/n/holylfs04/LABS/wofsy_lab/Lab/MethaneAIR/level1/RF02/EKC02022021/O2_NATIVE/MethaneAIR_L1B_O2_20191112T180150_20191112T180159_20210216T151351.nc"
-  file_L1 = "/n/holylfs04/LABS/wofsy_lab/Lab/MethaneAIR/level1/RF02/EKC_V3/O2_NATIVE/MethaneAIR_L1B_O2_20191112T183929_20191112T183929_20210326T162827.nc",
+  file_L1 = "/n/holylfs04/LABS/wofsy_lab/Lab/MethaneAIR/level1/RF05/O2Avionics/MethaneAIR_L1B_O2_20210803T191229_20210803T191259_20210804T102613.nc",
+  L1_var_time = "GEOS_5_tau",
 
   # Directory to store output 
-  dir_output = "/n/holyscratch01/wofsy_lab/benmergui/Orthorectification_Avionics/RF01/",
+  dir_output = "/n/holyscratch01/wofsy_lab/benmergui/Orthorectification_Avionics/RF05/",
 
   # Aggregation factor for DEM (higher number speeds computation, lower number more accurate)
   dem_aggrregation = 4,
@@ -29,14 +28,19 @@ Orthorectification_Avionics_NC <- function(
   points_x = 1280,
 
   # Variable to select longitude and latitude from flight data
-  latvar = "LATC",
-  lonvar = "LONC",
+  var_lat                 = "GGLAT",
+  var_lon                 = "GGLON",
+  var_pitch               = "PITCH_IRS3",
+  var_roll                = "ROLL_IRS3",
+  var_heading             = "THDG_IRS3",
+  var_alt_geoid           = "GEOPTH",
+  var_geoid_height_WGS84  = "GGEOIDHT",
 
   # Earth Orientation Parameter (EOP) file 
-  file_eop = "../../Inputs/eop19622020.txt",
+  file_eop = "/n/holylfs04/LABS/wofsy_lab/Lab/econway/DATA/EOP-Last5Years_celestrak_20210723.txt",
 
   # Directory with user defined functions
-  dir_lib = "../../Lib/",
+  dir_lib = "/n/holylfs04/LABS/wofsy_lab/Lab/econway/DATA/0User_Functions/",
 
   # Instrument angular field of view
   FOV = 33.7,
@@ -71,7 +75,7 @@ Orthorectification_Avionics_NC <- function(
   # Load Inputs----------------------------------------------------------------
 
   # flight data
-  flight_nc <- nc_open(file_flightnc)
+  flight_nc <- ncdf4::nc_open(file_flightnc)
 
   # Digital elevation map
   #dem <- readRDS(file_dem)
@@ -95,43 +99,73 @@ Orthorectification_Avionics_NC <- function(
                               substr(flightdate, 1, 2), "-",
                               substr(flightdate, 4, 5))
 
-  # Check the lengths of the variables in the netcdf
-  nc_timelen <- length( ncvar_get(flight_nc, "Time"))
-  nc_latlen <- length(ncvar_get(flight_nc, latvar))
+  #  Get the variables 
+  time                <- as.vector(ncvar_get(flight_nc, "Time"))
+  lat                 <- as.vector(ncvar_get(flight_nc, var_lat))
+  lon                 <- as.vector(ncvar_get(flight_nc, var_lon))
+  pitch               <- as.vector(ncvar_get(flight_nc, var_pitch))
+  roll                <- as.vector(ncvar_get(flight_nc, var_roll))
+  heading             <- as.vector(ncvar_get(flight_nc, var_heading))
+  geoid               <- as.vector(ncvar_get(flight_nc, var_alt_geoid))
+  geoid_height_WGS84  <- as.vector(ncvar_get(flight_nc, var_geoid_height_WGS84))
 
+  # The longest length in the system:
+  len_full <- max(
+    length(time),
+    length(lat),
+    length(lon),
+    length(pitch),
+    length(roll),
+    length(heading),
+    length(geoid),
+    length(geoid_height_WGS84)
+  ) 
+    
+  # Interpolate variables down to the highest frequency 
+  lat_full                = splinefun(
+                              x = seq(from = 1, to = len_full, length = length(lat)), y = lat
+                            )(1:len_full)
+  lon_full                = splinefun(
+                              x = seq(from = 1, to = len_full, length = length(lon)), y = lon
+                            )(1:len_full)
+  pitch_full              = splinefun(
+                              x = seq(from = 1, to = len_full, length = length(pitch)), y = pitch
+                            )(1:len_full)
+  roll_full               = splinefun(
+                              x = seq(from = 1, to = len_full, length = length(roll)), y = roll
+                            )(1:len_full)
+  # Use a constant approx for heading to deal with 360 crossing. 
+  heading_full            = approx(
+                              x     = seq(from = 1, to = len_full, length = length(heading)), 
+                              y     = heading,
+                              xout  = 1:len_full,
+                              method = "constant"
+                            )$y 
+  geoid_full              = splinefun(
+                              x = seq(from = 1, to = len_full, length = length(geoid)), y = geoid
+                            )(1:len_full)
+  geoid_height_WGS84_full = splinefun(
+                              x = seq(from = 1, to = len_full, length = length(geoid_height_WGS84)), y = geoid_height_WGS84
+                            )(1:len_full)
+ 
   # Generate a dataframe of the flight data
   flight_df <- data.frame(
     time = ymd_hms(paste(flightdate_string, "00:00:00 UTC")) +
-      rep(seconds(ncvar_get(flight_nc, "Time")), each = nc_latlen / nc_timelen) +
-      rep((1:(nc_latlen / nc_timelen))/(nc_latlen / nc_timelen), nc_timelen),
-    geoid_height_WGS84 = rep(as.vector(ncvar_get(flight_nc, "GGEOIDHT")), 
-      each = nc_latlen / nc_timelen),
-    alt_geoid = as.vector(ncvar_get(flight_nc, "GEOPTH")),
-    lat = as.vector(ncvar_get(flight_nc, latvar)),
-    lon = as.vector(ncvar_get(flight_nc, lonvar)),
-    pitch = as.vector(ncvar_get(flight_nc, "PITCH")),
-    roll = as.vector(ncvar_get(flight_nc, "ROLL")),
-    heading = as.vector(ncvar_get(flight_nc, "THDG"))
+      rep(seconds(ncvar_get(flight_nc, "Time")), each = len_full / length(time)) +
+      rep((0:((len_full / length(time)) - 1))/(len_full / length(time)), length(time)),
+    geoid_height_WGS84  = geoid_height_WGS84_full, 
+    alt_geoid           = geoid_full,
+    lat                 = lat_full,
+    lon                 = lon_full,
+    pitch               = pitch_full,
+    roll                = roll_full,
+    heading             = heading_full
   )
-
-  # Interpolate flight_df to get rid of NA's 
-  flight_df$alt_geoid <- approx(x = flight_df$time[!is.na(flight_df$alt_geoid)],
-                          y = flight_df$alt[!is.na(flight_df$alt_geoid)],
-                          xout = flight_df$time)$y
-  flight_df$alt <- approx(x = flight_df$time[!is.na(flight_df$alt)],
-                          y = flight_df$alt[!is.na(flight_df$alt)],
-                          xout = flight_df$time)$y
-  flight_df$lat <- approx(x = flight_df$time[!is.na(flight_df$lat)],
-                          y = flight_df$lat[!is.na(flight_df$lat)],
-                          xout = flight_df$time)$y
-  flight_df$lon <- approx(x = flight_df$time[!is.na(flight_df$lon)],
-                          y = flight_df$lon[!is.na(flight_df$lon)],
-                          xout = flight_df$time)$y
 
   # * Level 1 retrieval data---------------------------------------------------
 
   # Generate a time object from the L1 data
-  L1_time <- ymd_hms("1985-01-01 00:00:00 UTC") + 60 * 60 * ncvar_get(L1_nc, "GEOS_5_tau") %>% seconds() 
+  L1_time <- ymd_hms("1985-01-01 00:00:00 UTC") + 60 * 60 * ncvar_get(L1_nc, L1_var_time) %>% seconds() 
   # Add a timestep for the last pixel end
   L1_time <- c(L1_time, L1_time[length(L1_time)] + seconds(framerate))
 
@@ -141,22 +175,17 @@ Orthorectification_Avionics_NC <- function(
   # Calculate time variables
   flight_df$MJD_UTC         <- utc2mjd(flight_df$time)
 
-  # Interpolate the flight df for the period in the L1 
-  flight_df_L1 <- matrix(nrow = length(L1_time), ncol = ncol(flight_df) - 1)
-  for(flight_df.tick in 2:ncol(flight_df)) {
-   flight_df_L1[, flight_df.tick - 1] <-
-      approx(x = flight_df$time, y = flight_df[, flight_df.tick], xout = L1_time)$y
-  }
+  # Interpolate to the L1 times 
   flight_df_L1 <- data.frame(
-    time = L1_time,
-    geoid_height_WGS84 = flight_df_L1[,1],
-    alt_geoid  = flight_df_L1[,2],
-    lat  = flight_df_L1[,3],
-    lon  = flight_df_L1[,4],
-    pitch  = flight_df_L1[,5],
-    roll = flight_df_L1[,6],
-    heading = flight_df_L1[,7],
-    MJD_UTC = flight_df_L1[,9]
+    time                = L1_time,
+    geoid_height_WGS84  = approx(x = flight_df$time, y = flight_df$geoid_height_WGS84,  xout = L1_time)$y,
+    alt_geoid           = approx(x = flight_df$time, y = flight_df$alt_geoid,           xout = L1_time)$y,
+    lat                 = approx(x = flight_df$time, y = flight_df$lat,                 xout = L1_time)$y,
+    lon                 = approx(x = flight_df$time, y = flight_df$lon,                 xout = L1_time)$y,
+    pitch               = approx(x = flight_df$time, y = flight_df$pitch,               xout = L1_time)$y,
+    roll                = approx(x = flight_df$time, y = flight_df$roll,                xout = L1_time)$y,
+    heading             = approx(x = flight_df$time, y = flight_df$heading,             xout = L1_time)$y,
+    MJD_UTC             = approx(x = flight_df$time, y = flight_df$MJD_UTC,             xout = L1_time)$y
   )
 
   # * Earth Orientation Parameters---------------------------------------------
@@ -423,12 +452,12 @@ Orthorectification_Avionics_NC <- function(
   # Write NetCDF---------------------------------------------------------------
 
   # Make dimensions
-  xvals <- 1:L1_nc$dim$nrow$len
-  yvals <- ncvar_get(L1_nc, "GEOS_5_tau")
+  xvals <- 1:points_x
+  yvals <- ncvar_get(L1_nc, L1_var_time)
   zvals <- 1:3
   cvals <- 1:4
-  nx <- L1_nc$dim$nrow$len
-  ny <- L1_nc$dim$nframe$len
+  nx <- length(xvals)
+  ny <- length(yvals)
   nz <- 3
   nc <- 4
   xdim <- ncdim_def( 'nrow', 'acrosstrack',  xvals )
@@ -439,13 +468,13 @@ Orthorectification_Avionics_NC <- function(
   mv <- 99999 # missing value
   var_lon       <- ncvar_def('Longitude',                     'degrees',        list(xdim,ydim),      mv)
   var_lat       <- ncvar_def('Latitude',                      'degrees',        list(xdim,ydim),      mv)
-  var_pos       <- ncvar_def('Aircraft_Pos',                  'm ECI',          list(ydim, zdim),     mv)
-  var_lon_air   <- ncvar_def('Aircraft_Longitude',            'degrees',        list(ydim),           mv)
-  var_lat_air   <- ncvar_def('Aircraft_Latitude',             'degrees',        list(ydim),           mv)
-  var_dem_air   <- ncvar_def('Aircraft_SurfaceAltitude',      'm WGS84',        list(ydim),           mv)
-  var_alt_dem   <- ncvar_def('Aircraft_AltitudeAboveSurface', 'm',              list(ydim),           mv)
-  var_alt_WGS84 <- ncvar_def('Aircraft_AltitudeAboveWGS84',   'm',              list(ydim),           mv)
-  var_bor       <- ncvar_def('Aircraft_PixelBore',            'm ECI',          list(xdim,ydim,zdim), mv)
+  var_pos       <- ncvar_def('AircraftPos',                  'm ECI',          list(ydim, zdim),     mv)
+  var_lon_air   <- ncvar_def('AircraftLongitude',            'degrees',        list(ydim),           mv)
+  var_lat_air   <- ncvar_def('AircraftLatitude',             'degrees',        list(ydim),           mv)
+  var_dem_air   <- ncvar_def('AircraftSurfaceAltitude',      'm WGS84',        list(ydim),           mv)
+  var_alt_dem   <- ncvar_def('AircraftAltitudeAboveSurface', 'm',              list(ydim),           mv)
+  var_alt_WGS84 <- ncvar_def('AircraftAltitudeAboveWGS84',   'm',              list(ydim),           mv)
+  var_bor       <- ncvar_def('AircraftPixelBore',            'm ECI',          list(xdim,ydim,zdim), mv)
   var_vza       <- ncvar_def('ViewingZenithAngle',            'degrees',        list(xdim,ydim),      mv)
   var_vaa       <- ncvar_def('ViewingAzimuthAngle',           'degrees bearing',list(xdim,ydim),      mv)
   var_sza       <- ncvar_def('SolarZenithAngle',              'degrees',        list(xdim,ydim),      mv)
